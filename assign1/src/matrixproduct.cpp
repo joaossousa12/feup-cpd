@@ -14,6 +14,7 @@ using namespace std;
 ofstream onMultOut("PerformanceMetrics/onmult.txt");
 ofstream onMultLineOut("PerformanceMetrics/onmultLine.txt");
 ofstream onMultBlockOut("PerformanceMetrics/onmultBlock.txt");
+ofstream onMultLineParallelOut("PerformanceMetrics/onmultLineParallel.txt");
  
 void OnMult(int m_ar, int m_br) 
 {
@@ -104,6 +105,62 @@ void OnMultLine(int m_ar, int m_br)
 	free(phc);
 }
 
+void OnMultLineParallel(int m_ar, int m_br)
+{	
+	SYSTEMTIME Time1, Time2;
+	double *pha, *phb, *phc;
+	int i, j, k;
+
+	float real_time, proc_time, mflops;
+	long long flpins;
+	int retval;
+	
+	pha = (double *)malloc((m_ar * m_ar) * sizeof(double));
+	phb = (double *)malloc((m_ar * m_ar) * sizeof(double));
+	phc = (double *)malloc((m_ar * m_ar) * sizeof(double));
+
+	for(i=0; i<m_ar; i++)
+		for(j=0; j<m_ar; j++)
+			pha[i*m_ar + j] = (double)1.0;
+
+
+
+	for(i=0; i<m_br; i++)
+		for(j=0; j<m_br; j++)
+			phb[i*m_br + j] = (double)(i+1);
+
+	if((retval=PAPI_flops(&real_time, &proc_time, &flpins, &mflops)< PAPI_OK) )
+  	{ 
+	printf("PAPI_flops init error!\n");
+    exit(1);
+  	}
+
+	Time1 = clock();
+
+	#pragma omp parallel for
+	for(i=0; i < m_ar; i++)
+		for(k = 0; k < m_ar; k++)
+			for(j = 0; j < m_br; j++)
+				phc[i * m_ar + j] += pha[i * m_ar + k] * phb[k * m_br + j];
+
+	Time2 = clock();
+
+	onMultLineParallelOut << "Time:" << fixed << setprecision(3) << (double)(Time2 - Time1) / CLOCKS_PER_SEC << " seconds,";
+
+	if ((retval=PAPI_flops(&real_time, &proc_time, &flpins, &mflops)) < PAPI_OK)
+    {
+        cerr << "PAPI_flops failed" << endl;
+    }
+
+	onMultLineParallelOut << "Total Floating Point Instructions: " << flpins << endl;
+    onMultLineParallelOut << "MFLOPs: " << mflops << endl;
+
+	free(pha);
+	free(phb);
+	free(phc);
+
+
+}
 // add code here for block x block matriz multiplication
 void OnMultBlock(int m_ar, int m_br, int bkSize)
 {
@@ -194,6 +251,7 @@ int main (int argc, char *argv[])
 	vector<int> mult = {600,1000,1400,1800,2200,2600,3000};
 	vector<int> multLine = {600,1000,1400,1800,2200,2600,3000,4096,6144,8192,10240};
 	vector<int> multBlock = {4096,6144,8192,10240};
+	vector<int> multLineParallel = {600,1000,1400,1800,2200,2600,3000,4096,6144,8192,10240};
 	vector<int> blockSize = {128,256,512};
 
 	// Changed to 3 times per method because it is just a lot of time
@@ -264,6 +322,27 @@ int main (int argc, char *argv[])
 			onMultBlockOut << endl;
 		}
 		onMultBlockOut << endl;
+	}
+
+	for(int i :  multLineParallel){
+		onMultLineParallelOut << i << "x" << i << endl << endl;
+		for(int j = 0; j < 3; j++){
+			onMultLineParallelOut << j + 1 << ",";
+	
+			ret = PAPI_start(EventSet);
+			if (ret != PAPI_OK) cout << "ERROR: Start PAPI" << endl;
+	
+			OnMultLineParallel(i, i);
+	
+			ret = PAPI_stop(EventSet, values);
+			if (ret != PAPI_OK) cout << "ERROR: Stop PAPI" << endl;
+	
+			onMultLineParallelOut << "L1 DCM: " << values[0] << ",L2 DCM:" << values[1] << ",L2 DCA:" << values[2] << endl;
+			
+		    ret = PAPI_reset( EventSet );
+			if ( ret != PAPI_OK ) std::cout << "FAIL reset" << endl; 
+		}
+		onMultLineParallelOut << endl;
 	}
 
 	ret = PAPI_remove_event( EventSet, PAPI_L1_DCM );
