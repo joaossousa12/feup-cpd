@@ -243,6 +243,7 @@ int main (int argc, char *argv[])
 	for(int i : multBlock){
 		onMultBlockOut << i << "x" << i << endl << endl;
 		for(int k : blockSize){
+			onMultBlockOut << k << " block" << endl << endl;
 			for(int j = 0; j < 3; j++){
 				
 				onMultBlockOut << j + 1 << ",";
