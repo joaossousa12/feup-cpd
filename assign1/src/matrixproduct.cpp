@@ -15,7 +15,8 @@ ofstream onMultOut("PerformanceMetrics/onmult.txt");
 ofstream onMultLineOut("PerformanceMetrics/onmultLine.txt");
 ofstream onMultBlockOut("PerformanceMetrics/onmultBlock.txt");
 ofstream onMultLineParallelOut("PerformanceMetrics/onmultLineParallel.txt");
- 
+ofstream onMultLineParallelOut2("PerformanceMetrics/onmultLineParallel2.txt");
+
 void OnMult(int m_ar, int m_br) 
 {
 	
@@ -111,10 +112,6 @@ void OnMultLineParallel(int m_ar, int m_br)
 	double *pha, *phb, *phc;
 	int i, j, k;
 
-	float real_time, proc_time, mflops;
-	long long flpins;
-	int retval;
-	
 	pha = (double *)malloc((m_ar * m_ar) * sizeof(double));
 	phb = (double *)malloc((m_ar * m_ar) * sizeof(double));
 	phc = (double *)malloc((m_ar * m_ar) * sizeof(double));
@@ -129,11 +126,6 @@ void OnMultLineParallel(int m_ar, int m_br)
 		for(j=0; j<m_br; j++)
 			phb[i*m_br + j] = (double)(i+1);
 
-	if((retval=PAPI_flops(&real_time, &proc_time, &flpins, &mflops)< PAPI_OK) )
-  	{ 
-	printf("PAPI_flops init error!\n");
-    exit(1);
-  	}
 
 	Time1 = clock();
 
@@ -147,13 +139,46 @@ void OnMultLineParallel(int m_ar, int m_br)
 
 	onMultLineParallelOut << "Time:" << fixed << setprecision(3) << (double)(Time2 - Time1) / CLOCKS_PER_SEC << " seconds,";
 
-	if ((retval=PAPI_flops(&real_time, &proc_time, &flpins, &mflops)) < PAPI_OK)
-    {
-        cerr << "PAPI_flops failed" << endl;
-    }
+	free(pha);
+	free(phb);
+	free(phc);
 
-	onMultLineParallelOut << "Total Floating Point Instructions: " << flpins << endl;
-    onMultLineParallelOut << "MFLOPs: " << mflops << endl;
+
+}
+
+void OnMultLineParallel2(int m_ar, int m_br)
+{	
+	SYSTEMTIME Time1, Time2;
+	double *pha, *phb, *phc;
+	int i, j, k;
+
+	pha = (double *)malloc((m_ar * m_ar) * sizeof(double));
+	phb = (double *)malloc((m_ar * m_ar) * sizeof(double));
+	phc = (double *)malloc((m_ar * m_ar) * sizeof(double));
+
+	for(i=0; i<m_ar; i++)
+		for(j=0; j<m_ar; j++)
+			pha[i*m_ar + j] = (double)1.0;
+
+
+
+	for(i=0; i<m_br; i++)
+		for(j=0; j<m_br; j++)
+			phb[i*m_br + j] = (double)(i+1);
+
+
+	Time1 = clock();
+
+	#pragma omp parallel 
+	for(i=0; i < m_ar; i++)
+		for(k = 0; k < m_ar; k++)
+			#pragma omp for
+			for(j = 0; j < m_br; j++)
+				phc[i * m_ar + j] += pha[i * m_ar + k] * phb[k * m_br + j];
+
+	Time2 = clock();
+
+	onMultLineParallelOut2 << "Time:" << fixed << setprecision(3) << (double)(Time2 - Time1) / CLOCKS_PER_SEC << " seconds,";
 
 	free(pha);
 	free(phb);
@@ -248,11 +273,18 @@ int main (int argc, char *argv[])
 	ret = PAPI_add_event(EventSet, PAPI_L2_DCA);
 	if (ret != PAPI_OK) cout << "ERROR: PAPI_L2_DCA" << endl;
 
+	ret = PAPI_add_event(EventSet, PAPI_FP_INS);
+	if (ret != PAPI_OK) cout << "ERROR: PAPI_FP_INS" << endl;
+
+
 	vector<int> mult = {600,1000,1400,1800,2200,2600,3000};
 	vector<int> multLine = {600,1000,1400,1800,2200,2600,3000,4096,6144,8192,10240};
 	vector<int> multBlock = {4096,6144,8192,10240};
 	vector<int> multLineParallel = {600,1000,1400,1800,2200,2600,3000,4096,6144,8192,10240};
 	vector<int> blockSize = {128,256,512};
+
+	SYSTEMTIME Time1, Time2;
+	double serialTime, parallelTime;
 
 	// Changed to 3 times per method because it is just a lot of time
 
@@ -284,9 +316,13 @@ int main (int argc, char *argv[])
 	
 			ret = PAPI_start(EventSet);
 			if (ret != PAPI_OK) cout << "ERROR: Start PAPI" << endl;
-	
+
+			Time1 = clock();
 			OnMultLine(i, i);
-	
+			Time2 = clock();
+
+			serialTime = (double)(Time2 - Time1) / CLOCKS_PER_SEC;
+
 			ret = PAPI_stop(EventSet, values);
 			if (ret != PAPI_OK) cout << "ERROR: Stop PAPI" << endl;
 	
@@ -326,23 +362,64 @@ int main (int argc, char *argv[])
 
 	for(int i :  multLineParallel){
 		onMultLineParallelOut << i << "x" << i << endl << endl;
+		onMultLineParallelOut2 << i << "x" << i << endl << endl;
 		for(int j = 0; j < 3; j++){
 			onMultLineParallelOut << j + 1 << ",";
+			onMultLineParallelOut2 << j + 1 << ",";
 	
 			ret = PAPI_start(EventSet);
 			if (ret != PAPI_OK) cout << "ERROR: Start PAPI" << endl;
-	
+
+
+			Time1 = clock();
 			OnMultLineParallel(i, i);
+			Time2 = clock();
+
+			parallelTime = (double)(Time2 - Time1) / CLOCKS_PER_SEC;
+			double speedup = serialTime / parallelTime;
 	
 			ret = PAPI_stop(EventSet, values);
 			if (ret != PAPI_OK) cout << "ERROR: Stop PAPI" << endl;
 	
-			onMultLineParallelOut << "L1 DCM: " << values[0] << ",L2 DCM:" << values[1] << ",L2 DCA:" << values[2] << endl;
+			onMultLineParallelOut << "L1 DCM: " << values[0] << ",L2 DCM:" << values[1] << ",L2 DCA:" << values[2] << ",FLOPS:" << values[3] << endl;
+			onMultLineParallelOut << "MFLOPS: " << values[3] / (parallelTime * 1000000) << endl;
 			
-		    ret = PAPI_reset( EventSet );
+		    
+			onMultLineParallelOut << "Serial Time: " << serialTime << " seconds, "
+                      << "Parallel Time: " << parallelTime << " seconds, "
+                      << "Speedup: " << speedup << endl;
+
+			ret = PAPI_reset( EventSet );
 			if ( ret != PAPI_OK ) std::cout << "FAIL reset" << endl; 
+
+			ret = PAPI_start(EventSet);
+			if (ret != PAPI_OK) cout << "ERROR: Start PAPI" << endl;
+
+			Time1 = clock();
+			OnMultLineParallel2(i, i);
+			Time2 = clock();
+
+			parallelTime = (double)(Time2 - Time1) / CLOCKS_PER_SEC;
+			speedup = serialTime / parallelTime;
+
+			ret = PAPI_stop(EventSet, values);
+			if (ret != PAPI_OK) cout << "ERROR: Stop PAPI" << endl;
+
+			onMultLineParallelOut2 << "L1 DCM: " << values[0] << ",L2 DCM:" << values[1] << ",L2 DCA:" << values[2] << ",FLOPS:" << values[3] << endl;
+			onMultLineParallelOut2 << "MFLOPS: " << values[3] / (parallelTime * 1000000) << endl;
+			
+		    
+			onMultLineParallelOut2 << "Serial Time: " << serialTime << " seconds, "
+                      << "Parallel Time: " << parallelTime << " seconds, "
+                      << "Speedup: " << speedup << endl;
+
+			ret = PAPI_reset( EventSet );
+			if ( ret != PAPI_OK ) std::cout << "FAIL reset" << endl; 
+			
+
 		}
 		onMultLineParallelOut << endl;
+		onMultLineParallelOut2 << endl;
 	}
 
 	ret = PAPI_remove_event( EventSet, PAPI_L1_DCM );
