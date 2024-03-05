@@ -6,6 +6,7 @@
 #include <time.h>
 #include <cstdlib>
 #include <papi.h>
+#include <omp.h>
 
 using namespace std;
 
@@ -283,7 +284,7 @@ int main (int argc, char *argv[])
 	vector<int> multLineParallel = {600,1000,1400,1800,2200,2600,3000,4096,6144,8192,10240};
 	vector<int> blockSize = {128,256,512};
 
-	SYSTEMTIME Time1, Time2;
+	SYSTEMTIME Time1, Time2, Time3, Time4, Time5, Time6;
 	double serialTime, parallelTime;
 
 	// Changed to 3 times per method because it is just a lot of time
@@ -371,11 +372,11 @@ int main (int argc, char *argv[])
 			if (ret != PAPI_OK) cout << "ERROR: Start PAPI" << endl;
 
 
-			Time1 = clock();
+			Time3 = clock();
 			OnMultLineParallel(i, i);
-			Time2 = clock();
+			Time4 = clock();
 
-			parallelTime = (double)(Time2 - Time1) / CLOCKS_PER_SEC;
+			parallelTime = (double)(Time4 - Time3) / CLOCKS_PER_SEC;
 			double speedup = serialTime / parallelTime;
 	
 			ret = PAPI_stop(EventSet, values);
@@ -383,6 +384,7 @@ int main (int argc, char *argv[])
 	
 			onMultLineParallelOut << "L1 DCM: " << values[0] << ",L2 DCM:" << values[1] << ",L2 DCA:" << values[2] << ",FLOPS:" << values[3] << endl;
 			onMultLineParallelOut << "MFLOPS: " << values[3] / (parallelTime * 1000000) << endl;
+			onMultLineParallelOut << "MFLOPS2: " << ((2*i)^3) / (parallelTime * 1000000) << endl;
 			
 		    
 			onMultLineParallelOut << "Serial Time: " << serialTime << " seconds, "
@@ -395,11 +397,11 @@ int main (int argc, char *argv[])
 			ret = PAPI_start(EventSet);
 			if (ret != PAPI_OK) cout << "ERROR: Start PAPI" << endl;
 
-			Time1 = clock();
+			Time5 = clock();
 			OnMultLineParallel2(i, i);
-			Time2 = clock();
+			Time6 = clock();
 
-			parallelTime = (double)(Time2 - Time1) / CLOCKS_PER_SEC;
+			parallelTime = (double)(Time6 - Time5) / CLOCKS_PER_SEC;
 			speedup = serialTime / parallelTime;
 
 			ret = PAPI_stop(EventSet, values);
@@ -407,6 +409,7 @@ int main (int argc, char *argv[])
 
 			onMultLineParallelOut2 << "L1 DCM: " << values[0] << ",L2 DCM:" << values[1] << ",L2 DCA:" << values[2] << ",FLOPS:" << values[3] << endl;
 			onMultLineParallelOut2 << "MFLOPS: " << values[3] / (parallelTime * 1000000) << endl;
+			onMultLineParallelOut2 << "MFLOPS2: " << ((2*i)^3) / (parallelTime * 1000000) << endl;
 			
 		    
 			onMultLineParallelOut2 << "Serial Time: " << serialTime << " seconds, "
@@ -441,4 +444,6 @@ int main (int argc, char *argv[])
 	onMultBlockOut.close();
 	onMultOut.close();
 	onMultLineOut.close();
+	onMultLineParallelOut.close();
+	onMultLineParallelOut2.close();
 }
