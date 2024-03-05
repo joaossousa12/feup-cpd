@@ -110,7 +110,7 @@ void OnMultLineParallel(int m_ar, int m_br)
 {	
 	SYSTEMTIME Time1, Time2;
 	double *pha, *phb, *phc;
-	int i, j, k;
+	int i, j;
 
 	pha = (double *)malloc((m_ar * m_ar) * sizeof(double));
 	phb = (double *)malloc((m_ar * m_ar) * sizeof(double));
@@ -130,10 +130,10 @@ void OnMultLineParallel(int m_ar, int m_br)
 	Time1 = clock();
 
 	#pragma omp parallel for
-	for(i=0; i < m_ar; i++)
-		for(k = 0; k < m_ar; k++)
-			for(j = 0; j < m_br; j++)
-				phc[i * m_ar + j] += pha[i * m_ar + k] * phb[k * m_br + j];
+	for(int l=0; l < m_ar; l++)
+		for(int k = 0; k < m_ar; k++)
+			for(int z = 0; z < m_br; z++)
+				phc[l * m_ar + z] += pha[l * m_ar + k] * phb[k * m_br + z];
 
 	Time2 = clock();
 
@@ -150,7 +150,7 @@ void OnMultLineParallel2(int m_ar, int m_br)
 {	
 	SYSTEMTIME Time1, Time2;
 	double *pha, *phb, *phc;
-	int i, j, k;
+	int i, j;
 
 	pha = (double *)malloc((m_ar * m_ar) * sizeof(double));
 	phb = (double *)malloc((m_ar * m_ar) * sizeof(double));
@@ -170,11 +170,11 @@ void OnMultLineParallel2(int m_ar, int m_br)
 	Time1 = clock();
 
 	#pragma omp parallel 
-	for(i=0; i < m_ar; i++)
-		for(k = 0; k < m_ar; k++)
+	for(int l=0; l < m_ar; l++)
+		for(int k = 0; k < m_ar; k++)
 			#pragma omp for
-			for(j = 0; j < m_br; j++)
-				phc[i * m_ar + j] += pha[i * m_ar + k] * phb[k * m_br + j];
+			for(int z = 0; z < m_br; z++)
+				phc[l * m_ar + z] += pha[l * m_ar + k] * phb[k * m_br + z];
 
 	Time2 = clock();
 
