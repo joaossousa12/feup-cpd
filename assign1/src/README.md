@@ -3,7 +3,7 @@
 ## C++ version
 
 ```bash
-> g++ -O2 matrixproduct.cpp -o matrix -lpapi
+> g++ -O2 -fopenmp matrixproduct.cpp -o matrix -lpapi
 > ./matrix
 ```
 
