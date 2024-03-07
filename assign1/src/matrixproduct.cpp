@@ -287,6 +287,20 @@ int main (int argc, char *argv[])
 	SYSTEMTIME Time1, Time2, Time3, Time4, Time5, Time6;
 	double serialTime, parallelTime;
 
+	double serialTimes[] = {
+        0.102, 0112, 0.101,
+        0.545, 0.601, 0.473,
+        1.794, 1.688, 1.563,
+        3.414, 3.431, 3.434,
+        6.312, 6.314, 6.302,
+        10.499, 10.512, 10.8,
+        16.937, 16.108, 16.473,
+        45.138, 41.449, 42.192,
+        142.224, 141.005, 140.376,
+        330.790, 332.683, 331.415,
+        651.341, 648.978, 650.485
+    };
+
 	// Changed to 3 times per method because it is just a lot of time
 
 	for(int i : mult){
@@ -360,6 +374,7 @@ int main (int argc, char *argv[])
 		}
 		onMultBlockOut << endl;
 	}
+	serialTimeIndex = 0;
 
 	for(int i :  multLineParallel){
 		onMultLineParallelOut << i << "x" << i << endl << endl;
@@ -377,7 +392,7 @@ int main (int argc, char *argv[])
 			Time4 = clock();
 
 			parallelTime = (double)(Time4 - Time3) / CLOCKS_PER_SEC;
-			double speedup = serialTime / parallelTime;
+			double speedup = serialTimes[serialTimeIndex] / parallelTime;
 	
 			ret = PAPI_stop(EventSet, values);
 			if (ret != PAPI_OK) cout << "ERROR: Stop PAPI" << endl;
@@ -387,7 +402,7 @@ int main (int argc, char *argv[])
 			onMultLineParallelOut << "MFLOPS2: " << ((2*i)^3) / (parallelTime * 1000000) << endl;
 			
 		    
-			onMultLineParallelOut << "Serial Time: " << serialTime << " seconds, "
+			onMultLineParallelOut << "Serial Time: " << serialTimes[serialTimeIndex] << " seconds, "
                       << "Parallel Time: " << parallelTime << " seconds, "
                       << "Speedup: " << speedup << endl;
 
@@ -402,7 +417,7 @@ int main (int argc, char *argv[])
 			Time6 = clock();
 
 			parallelTime = (double)(Time6 - Time5) / CLOCKS_PER_SEC;
-			speedup = serialTime / parallelTime;
+			speedup = serialTimes[serialTimeIndex] / parallelTime;
 
 			ret = PAPI_stop(EventSet, values);
 			if (ret != PAPI_OK) cout << "ERROR: Stop PAPI" << endl;
@@ -412,12 +427,14 @@ int main (int argc, char *argv[])
 			onMultLineParallelOut2 << "MFLOPS2: " << ((2*i)^3) / (parallelTime * 1000000) << endl;
 			
 		    
-			onMultLineParallelOut2 << "Serial Time: " << serialTime << " seconds, "
+			onMultLineParallelOut2 << "Serial Time: " << serialTimes[serialTimeIndex] << " seconds, "
                       << "Parallel Time: " << parallelTime << " seconds, "
                       << "Speedup: " << speedup << endl;
 
 			ret = PAPI_reset( EventSet );
 			if ( ret != PAPI_OK ) std::cout << "FAIL reset" << endl; 
+
+			serialTimeIndex++;
 			
 
 		}
