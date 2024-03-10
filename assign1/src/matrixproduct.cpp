@@ -374,7 +374,7 @@ int main (int argc, char *argv[])
 		}
 		onMultBlockOut << endl;
 	}
-	serialTimeIndex = 0;
+	int serialTimeIndex = 0;
 
 	for(int i :  multLineParallel){
 		onMultLineParallelOut << i << "x" << i << endl << endl;
