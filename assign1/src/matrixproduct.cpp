@@ -110,7 +110,6 @@ void OnMultLine(int m_ar, int m_br)
 
 void OnMultLineParallel(int m_ar, int m_br)
 {	
-	SYSTEMTIME Time1, Time2;
 	double *pha, *phb, *phc;
 	int i, j;
 
@@ -129,17 +128,12 @@ void OnMultLineParallel(int m_ar, int m_br)
 			phb[i*m_br + j] = (double)(i+1);
 
 
-	Time1 = clock();
 
 	#pragma omp parallel for
 	for(int l=0; l < m_ar; l++)
 		for(int k = 0; k < m_ar; k++)
 			for(int z = 0; z < m_br; z++)
 				phc[l * m_ar + z] += pha[l * m_ar + k] * phb[k * m_br + z];
-
-	Time2 = clock();
-
-	onMultLineParallelOut << "Time:" << fixed << setprecision(3) << (double)(Time2 - Time1) / CLOCKS_PER_SEC << " seconds,";
 
 	free(pha);
 	free(phb);
@@ -150,7 +144,6 @@ void OnMultLineParallel(int m_ar, int m_br)
 
 void OnMultLineParallel2(int m_ar, int m_br)
 {	
-	SYSTEMTIME Time1, Time2;
 	double *pha, *phb, *phc;
 	int i, j;
 
@@ -169,8 +162,6 @@ void OnMultLineParallel2(int m_ar, int m_br)
 			phb[i*m_br + j] = (double)(i+1);
 
 
-	Time1 = clock();
-
 	#pragma omp parallel 
 	for(int l=0; l < m_ar; l++)
 		for(int k = 0; k < m_ar; k++)
@@ -178,9 +169,6 @@ void OnMultLineParallel2(int m_ar, int m_br)
 			for(int z = 0; z < m_br; z++)
 				phc[l * m_ar + z] += pha[l * m_ar + k] * phb[k * m_br + z];
 
-	Time2 = clock();
-
-	onMultLineParallelOut2 << "Time:" << fixed << setprecision(3) << (double)(Time2 - Time1) / CLOCKS_PER_SEC << " seconds,";
 
 	free(pha);
 	free(phb);
@@ -404,7 +392,7 @@ int main (int argc, char *argv[])
 			if (ret != PAPI_OK) cout << "ERROR: Stop PAPI" << endl;
 	
 
-			onMultLineParallelOut << "L1 DCM:" << values[0] << ",L2 DCM:" << values[1] << ",L2 DCA:" << values[2] << endl;
+			onMultLineParallelOut << "ParallelTime:" << parallelTime << ",L1 DCM:" << values[0] << ",L2 DCM:" << values[1] << ",L2 DCA:" << values[2] << endl;
 			
 		    parallelTimeavg1 += parallelTime; 
                       
@@ -424,7 +412,7 @@ int main (int argc, char *argv[])
 			ret = PAPI_stop(EventSet, values);
 			if (ret != PAPI_OK) cout << "ERROR: Stop PAPI" << endl;
 
-			onMultLineParallelOut2 << "L1 DCM:" << values[0] << ",L2 DCM:" << values[1] << ",L2 DCA:" << values[2] << endl;
+			onMultLineParallelOut2 << "ParallelTime:" << parallelTime << ",L1 DCM:" << values[0] << ",L2 DCM:" << values[1] << ",L2 DCA:" << values[2] << endl;
 			
 		    parallelTimeavg += parallelTime;
                       
