@@ -304,6 +304,78 @@ int main (int argc, char *argv[])
 
 	// Changed to 3 times per method because it is just a lot of time
 
+	for(int i : mult){
+		onMultOut << i << "x" << i << endl << endl;
+		for(int j = 0; j < 3; j++){
+			onMultOut << j + 1 << ",";
+	
+			ret = PAPI_start(EventSet);
+			if (ret != PAPI_OK) cout << "ERROR: Start PAPI" << endl;
+	
+			OnMult(i, i);
+	
+			ret = PAPI_stop(EventSet, values);
+			if (ret != PAPI_OK) cout << "ERROR: Stop PAPI" << endl;
+	
+			onMultOut << "L1 DCM: " << values[0] << ",L2 DCM:" << values[1] << ",L2 DCA:" << values[2] << endl;
+	
+			ret = PAPI_reset( EventSet );
+			if ( ret != PAPI_OK ) std::cout << "FAIL reset" << endl; 
+		}
+		onMultOut << endl;
+	}
+
+	for(int i : multLine){
+		onMultLineOut << i << "x" << i << endl << endl;
+		for(int j = 0; j < 3; j++){
+			onMultLineOut << j + 1 << ",";
+	
+			ret = PAPI_start(EventSet);
+			if (ret != PAPI_OK) cout << "ERROR: Start PAPI" << endl;
+
+			Time1 = clock();
+			OnMultLine(i, i);
+			Time2 = clock();
+
+			serialTime = (double)(Time2 - Time1) / CLOCKS_PER_SEC;
+
+			ret = PAPI_stop(EventSet, values);
+			if (ret != PAPI_OK) cout << "ERROR: Stop PAPI" << endl;
+	
+			onMultLineOut << "L1 DCM: " << values[0] << ",L2 DCM:" << values[1] << ",L2 DCA:" << values[2] << endl;
+			
+		    ret = PAPI_reset( EventSet );
+			if ( ret != PAPI_OK ) std::cout << "FAIL reset" << endl; 
+		}
+		onMultLineOut << endl;
+	}
+
+	for(int i : multBlock){
+		onMultBlockOut << i << "x" << i << endl << endl;
+		for(int k : blockSize){
+			onMultBlockOut << k << " block" << endl << endl;
+			for(int j = 0; j < 3; j++){
+				
+				onMultBlockOut << j + 1 << ",";
+
+				ret = PAPI_start(EventSet);
+				if (ret != PAPI_OK) cout << "ERROR: Start PAPI" << endl;
+
+				OnMultBlock(i, i, k);
+
+				ret = PAPI_stop(EventSet, values);
+				if (ret != PAPI_OK) cout << "ERROR: Stop PAPI" << endl;
+				
+				onMultBlockOut << "L1 DCM: " << values[0] << ",L2 DCM:" << values[1] << ",L2 DCA:" << values[2] << endl;
+				
+				ret = PAPI_reset( EventSet );
+				if ( ret != PAPI_OK ) std::cout << "FAIL reset" << endl; 
+			}
+			onMultBlockOut << endl;
+		}
+		onMultBlockOut << endl;
+	}
+
 
 	int serialTimeIndex = 0;
 
