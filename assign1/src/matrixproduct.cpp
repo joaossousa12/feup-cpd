@@ -275,8 +275,6 @@ int main (int argc, char *argv[])
 	ret = PAPI_add_event(EventSet, PAPI_L2_DCA);
 	if (ret != PAPI_OK) cout << "ERROR: PAPI_L2_DCA" << endl;
 
-	ret = PAPI_add_event(EventSet, PAPI_FP_INS);
-	if (ret != PAPI_OK) cout << "ERROR: PAPI_FP_INS" << endl;
 
 
 	vector<int> mult = {600,1000,1400,1800,2200,2600,3000};
@@ -285,103 +283,37 @@ int main (int argc, char *argv[])
 	vector<int> multLineParallel = {600,1000,1400,1800,2200,2600,3000,4096,6144,8192,10240};
 	vector<int> blockSize = {128,256,512};
 
-	SYSTEMTIME Time1, Time2;
+	SYSTEMTIME Time1, Time2, Time3, Time4, Time5, Time6;
 	double start, end;
 	double start1, end1;
 	double serialTime, parallelTime;
 
 	double serialTimes[] = {
-        0.102, 0112, 0.101,
-        0.545, 0.601, 0.473,
-        1.794, 1.688, 1.563,
-        3.414, 3.431, 3.434,
-        6.312, 6.314, 6.302,
-        10.499, 10.512, 10.8,
-        16.937, 16.108, 16.473,
-        45.138, 41.449, 42.192,
-        142.224, 141.005, 140.376,
-        330.790, 332.683, 331.415,
-        651.341, 648.978, 650.485
+        0.105,
+        0.540,
+        1.682,
+        3.426,
+        6.309,
+        10.604,
+        16.506,
+        42.260,
+        141.868,
+        331.963,
+        650.601
     };
 
 	// Changed to 3 times per method because it is just a lot of time
 
-	for(int i : mult){
-		onMultOut << i << "x" << i << endl << endl;
-		for(int j = 0; j < 3; j++){
-			onMultOut << j + 1 << ",";
-	
-			ret = PAPI_start(EventSet);
-			if (ret != PAPI_OK) cout << "ERROR: Start PAPI" << endl;
-	
-			OnMult(i, i);
-	
-			ret = PAPI_stop(EventSet, values);
-			if (ret != PAPI_OK) cout << "ERROR: Stop PAPI" << endl;
-	
-			onMultOut << "L1 DCM: " << values[0] << ",L2 DCM:" << values[1] << ",L2 DCA:" << values[2] << endl;
-	
-			ret = PAPI_reset( EventSet );
-			if ( ret != PAPI_OK ) std::cout << "FAIL reset" << endl; 
-		}
-		onMultOut << endl;
-	}
 
-	for(int i : multLine){
-		onMultLineOut << i << "x" << i << endl << endl;
-		for(int j = 0; j < 3; j++){
-			onMultLineOut << j + 1 << ",";
-	
-			ret = PAPI_start(EventSet);
-			if (ret != PAPI_OK) cout << "ERROR: Start PAPI" << endl;
-
-			Time1 = clock();
-			OnMultLine(i, i);
-			Time2 = clock();
-
-			serialTime = (double)(Time2 - Time1) / CLOCKS_PER_SEC;
-
-			ret = PAPI_stop(EventSet, values);
-			if (ret != PAPI_OK) cout << "ERROR: Stop PAPI" << endl;
-	
-			onMultLineOut << "L1 DCM: " << values[0] << ",L2 DCM:" << values[1] << ",L2 DCA:" << values[2] << endl;
-			
-		    ret = PAPI_reset( EventSet );
-			if ( ret != PAPI_OK ) std::cout << "FAIL reset" << endl; 
-		}
-		onMultLineOut << endl;
-	}
-
-	for(int i : multBlock){
-		onMultBlockOut << i << "x" << i << endl << endl;
-		for(int k : blockSize){
-			onMultBlockOut << k << " block" << endl << endl;
-			for(int j = 0; j < 3; j++){
-				
-				onMultBlockOut << j + 1 << ",";
-
-				ret = PAPI_start(EventSet);
-				if (ret != PAPI_OK) cout << "ERROR: Start PAPI" << endl;
-
-				OnMultBlock(i, i, k);
-
-				ret = PAPI_stop(EventSet, values);
-				if (ret != PAPI_OK) cout << "ERROR: Stop PAPI" << endl;
-				
-				onMultBlockOut << "L1 DCM: " << values[0] << ",L2 DCM:" << values[1] << ",L2 DCA:" << values[2] << endl;
-				
-				ret = PAPI_reset( EventSet );
-				if ( ret != PAPI_OK ) std::cout << "FAIL reset" << endl; 
-			}
-			onMultBlockOut << endl;
-		}
-		onMultBlockOut << endl;
-	}
 	int serialTimeIndex = 0;
 
+	double speedup = 0;
+
 	for(int i :  multLineParallel){
-		onMultLineParallelOut << i << "x" << i << endl << endl;
-		onMultLineParallelOut2 << i << "x" << i << endl << endl;
+		onMultLineParallelOut <<endl<< i << "x" << i << endl << endl;
+		onMultLineParallelOut2 <<endl<< i << "x" << i << endl << endl;
+		double parallelTimeavg = 0;
+		double parallelTimeavg1 = 0;
 		for(int j = 0; j < 3; j++){
 			onMultLineParallelOut << j + 1 << ",";
 			onMultLineParallelOut2 << j + 1 << ",";
@@ -395,18 +327,15 @@ int main (int argc, char *argv[])
 			end = omp_get_wtime();
 
 			parallelTime = (double)(end - start);
-			double speedup = serialTimes[serialTimeIndex] / parallelTime;
 	
 			ret = PAPI_stop(EventSet, values);
 			if (ret != PAPI_OK) cout << "ERROR: Stop PAPI" << endl;
 	
 
-			onMultLineParallelOut << "L1 DCM:" << values[0] << ",L2 DCM:" << values[1] << ",L2 DCA:" << values[2];
-			onMultLineParallelOut << ",MFLOPS:" << (2 * (pow(i,3))) / (parallelTime * 1000000);
+			onMultLineParallelOut << "L1 DCM:" << values[0] << ",L2 DCM:" << values[1] << ",L2 DCA:" << values[2] << endl;
 			
-		    
-			onMultLineParallelOut << ",Parallel Time:" << parallelTime 
-                      << ",Speedup:" << speedup << ",Efficiency:" << speedup/8 << endl;
+		    parallelTimeavg1 += parallelTime; 
+                      
 
 			ret = PAPI_reset( EventSet );
 			if ( ret != PAPI_OK ) std::cout << "FAIL reset" << endl; 
@@ -419,27 +348,32 @@ int main (int argc, char *argv[])
 			end1 = omp_get_wtime();
 
 			parallelTime = (double)(end1 - start1);
-			speedup = serialTimes[serialTimeIndex] / parallelTime;
 
 			ret = PAPI_stop(EventSet, values);
 			if (ret != PAPI_OK) cout << "ERROR: Stop PAPI" << endl;
 
-			onMultLineParallelOut2 << "L1 DCM:" << values[0] << ",L2 DCM:" << values[1] << ",L2 DCA:" << values[2];
-			onMultLineParallelOut2 << ",MFLOPS:" << (2 * (pow(i,3))) / (parallelTime * 1000000);
+			onMultLineParallelOut2 << "L1 DCM:" << values[0] << ",L2 DCM:" << values[1] << ",L2 DCA:" << values[2] << endl;
 			
-		    
-			onMultLineParallelOut2 << ",Parallel Time:" << parallelTime 
-                      << ",Speedup:" << speedup << ",Efficiency:" << speedup/8 << endl;
+		    parallelTimeavg += parallelTime;
+                      
 
 			ret = PAPI_reset( EventSet );
 			if ( ret != PAPI_OK ) std::cout << "FAIL reset" << endl; 
-
-			serialTimeIndex++;
 			
 
 		}
-		onMultLineParallelOut << endl;
-		onMultLineParallelOut2 << endl;
+		parallelTimeavg /= 3;
+		parallelTimeavg1 /= 3;
+		speedup = serialTimes[serialTimeIndex] / parallelTimeavg1;
+		// efficiency for 8 cores
+		onMultLineParallelOut << endl << endl << "MFLOPS:" << (2 * (pow(i,3))) / (parallelTimeavg1 * 1000000) 
+		<< ",ParallelTimeAvg:" << parallelTimeavg1
+		<< ",Speedup:" << speedup << ",Efficiency:" << speedup/8 << endl;
+		speedup = serialTimes[serialTimeIndex] / parallelTimeavg;
+		onMultLineParallelOut2 << endl << endl << "MFLOPS:" << (2 * (pow(i,3))) / (parallelTimeavg * 1000000) 
+		<< ",ParallelTimeAvg:" << parallelTimeavg
+		<< ",Speedup:" << speedup << ",Efficiency:" << speedup/8 << endl;
+		serialTimeIndex++;
 	}
 
 	ret = PAPI_remove_event( EventSet, PAPI_L1_DCM );
