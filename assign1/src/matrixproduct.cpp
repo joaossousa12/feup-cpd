@@ -200,12 +200,12 @@ void OnMultBlock(int m_ar, int m_br, int bkSize)
 	Time1 = clock();
 
 	for (i = 0; i < m_ar; i += bkSize)
-        for (j = 0; j < m_br; j += bkSize)
-            for (k = 0; k < m_ar; k += bkSize)
-                for (l = i; l < min(i + bkSize, m_ar); l++) // rows pha current block
-                    for (m = j; m < min(j + bkSize, m_br); m++) // columns phb current block
-                        for (n = k; n < min(k + bkSize, m_ar); n++)
-                            phc[l * m_ar + m] += pha[l * m_ar + n] * phb[n * m_br + m];
+		for (k = 0; k < m_ar; k += bkSize)
+			for (j = 0; j < m_br; j += bkSize)
+				for (l = i; l < min(i + bkSize, m_ar); l++) //rows pha current block
+					for (n = k; n < min(k + bkSize, m_ar); n++)
+						for (m = j; m < min(j + bkSize, m_br); m++) //columns phb current block
+							phc[l * m_ar + m] += pha[l * m_ar + n] * phb[n * m_br + m];
 
 	Time2 = clock();
 	onMultBlockOut << "Time:" << fixed << setprecision(3) << (double)(Time2 - Time1) / CLOCKS_PER_SEC << " seconds,";
