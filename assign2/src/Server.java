@@ -12,7 +12,7 @@ import java.util.List;
 import java.util.Set;
 
 public class Server {
-    private static String db = "./doc/database.csv";
+    private static String db = "./database.csv";
 
     private ServerSocketChannel serverSocketChannel;
 
