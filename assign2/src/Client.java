@@ -15,19 +15,19 @@ public class Client {
     }
 
     public String getUsername() {
-        return username;
+        return this.username;
     }
 
     public String getPassword() {
-        return password;
+        return this.password;
     }
 
     public String getToken() {
-        return token;
+        return this.token;
     }
 
     public int getElo() {
-        return elo;
+        return this.elo;
     }
 
     public void setElo(int elo) {
@@ -35,7 +35,7 @@ public class Client {
     }
 
     public SocketChannel getSocketChannel() {
-        return socketChannel;
+        return this.socketChannel;
     }
 
     public void setSocketChannel(SocketChannel socketChannel) {
