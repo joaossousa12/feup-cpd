@@ -4,6 +4,10 @@ import java.nio.charset.StandardCharsets;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.Timer;
 import java.util.TimerTask;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.Map;
 
 public class Server {
     private ServerSocket serverSocket;
@@ -11,7 +15,9 @@ public class Server {
     private static final int MAX_PLAYERS = 10;
     private AtomicInteger connectedPlayers = new AtomicInteger(0);
     private Timer timer = new Timer();
+    private ExecutorService executor = Executors.newVirtualThreadPerTaskExecutor();
     private volatile boolean gameStarted = false;
+    private Map<Socket, ClientHandler> clientHandlers = new ConcurrentHashMap<>();
 
     public Server(int port) throws IOException {
         serverSocket = new ServerSocket(port);
@@ -19,24 +25,39 @@ public class Server {
     }
 
     public void listen() {
-        while (true) {
+        while (!serverSocket.isClosed()) {
             try {
                 Socket clientSocket = serverSocket.accept();
-                new ClientHandler(clientSocket, this).start();
+                ClientHandler handler = new ClientHandler(clientSocket, this);
+                clientHandlers.put(clientSocket, handler);
+                executor.submit(handler);
             } catch (IOException e) {
                 System.out.println("Exception caught when trying to listen on port or listening for a connection");
                 System.out.println(e.getMessage());
+                if (serverSocket.isClosed()) {
+                    break;
+                }
             }
         }
     }
 
-    private class ClientHandler extends Thread {
+    public void notifyAllClients(String message) {
+        for (ClientHandler handler : clientHandlers.values()) {
+            //handler.sendMessage(message);
+        }
+    }
+
+    private class ClientHandler implements Runnable {
         private Socket clientSocket;
         private Server server;
+        private PrintWriter out;
+
+
 
         public ClientHandler(Socket socket, Server server) {
             this.clientSocket = socket;
             this.server = server;
+            //this.out = new PrintWriter(new OutputStreamWriter(clientSocket.getOutputStream(), StandardCharsets.UTF_8), true);
         }
 
         public void run() {
@@ -62,6 +83,7 @@ public class Server {
             } finally {
                 try {
                     clientSocket.close();
+                    clientHandlers.remove(clientSocket);
                 } catch (IOException e) {
                     e.printStackTrace();
                 }
@@ -74,7 +96,7 @@ public class Server {
             @Override
             public void run() {
                 synchronized (Server.this) {
-                    if (!gameStarted) {
+                    if (!gameStarted && connectedPlayers.get() >= MIN_PLAYERS) {
                         System.out.println("Timer triggered, starting game with current players.");
                         startGame();
                     }
@@ -87,6 +109,7 @@ public class Server {
         if (!gameStarted) {
             gameStarted = true;
             System.out.println("Game started!");
+            notifyAllClients("Game started!");
 
             // Notify all clients that the game has started
             // (Assuming you have a list of connected clients somewhere)
