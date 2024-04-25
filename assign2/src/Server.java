@@ -18,6 +18,7 @@ public class Server {
     private ExecutorService executor = Executors.newVirtualThreadPerTaskExecutor();
     private volatile boolean gameStarted = false;
     private Map<Socket, ClientHandler> clientHandlers = new ConcurrentHashMap<>();
+    private Authentication auth = new Authentication();
 
     public Server(int port) throws IOException {
         serverSocket = new ServerSocket(port);
@@ -66,6 +67,31 @@ public class Server {
                 
                 String inputLine = in.readLine();
                 System.out.println(inputLine);
+                if (inputLine.startsWith("LOGIN,")) {
+                    String[] parts = inputLine.split(",");
+                    if (parts.length == 3) {
+                        String token = server.auth.login(parts[1], parts[2]);
+                        if (token != null) {
+                            out.println("TOKEN," + token);  // Send token back to client
+                            server.connectedPlayers.incrementAndGet();
+                        } else {
+                            out.println("ERROR,Invalid credentials");
+                            return;
+                        }
+                    }
+                } else if (inputLine.startsWith("REGISTER,")) {
+                    String[] parts = inputLine.split(",");
+                    if (parts.length == 4) {
+                        server.auth.registerUser(parts[1], parts[2], Integer.parseInt(parts[3]));
+                        out.println("REGISTERED");
+                    } else {
+                        out.println("ERROR,Invalid input");
+                        return;
+                    }
+                } else {
+                    out.println("ERROR,Invalid input");
+                    return;
+                }
                 if ("ready".equals(inputLine)) {
                     int playerCount = server.connectedPlayers.incrementAndGet();
                     System.out.println("Connected to client: " + clientSocket.getRemoteSocketAddress() + " - Total players: " + playerCount);
