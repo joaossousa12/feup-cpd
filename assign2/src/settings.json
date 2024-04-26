@@ -1,0 +1,5 @@
+{
+    "java.project.referencedLibraries": [
+        "src/external-libraries/*.jar"
+    ]
+}

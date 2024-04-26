@@ -4,7 +4,7 @@ import java.net.InetSocketAddress;
 import java.nio.charset.StandardCharsets;
 
 public class Client {
-    private final String username, password;
+    private String username, password;
     private String token;
     private int elo;
     private SocketChannel socketChannel;
@@ -57,7 +57,7 @@ public class Client {
     
             String response = reader.readLine();
             System.out.println(response);
-            if (response != null && response.startsWith("REGISTER,")) {
+            if (response != null && response.startsWith("REGISTERED")) {
                 return true;  
             } else if (response != null && response.startsWith("ERROR,")) {
                 System.err.println("Registration failed: " + response.split(",")[1]);
@@ -89,6 +89,20 @@ public class Client {
         }
         return false;
     }
+
+    private static int getUserElo(String username, String password) throws IOException {
+        try (BufferedReader fileReader = new BufferedReader(new FileReader("./database.csv"))) {
+            String line;
+            while ((line = fileReader.readLine()) != null) {
+                String[] userData = line.split(",");
+                if (userData[0].equals(username) && userData[1].equals(password)) {
+                    return Integer.parseInt(userData[2]);
+                }
+            }
+        }
+        return -1; // User not found
+    }
+
     public static void main(String[] args) {
         try (BufferedReader consoleReader = new BufferedReader(new InputStreamReader(System.in))) {
             System.out.println("Welcome! Do you need to register a new account? (yes/no)");
@@ -101,27 +115,31 @@ public class Client {
                 System.out.println("Enter password:");
                 String password = consoleReader.readLine().trim();
     
-                Client client = new Client(username, password, "", 1500, socketChannel);
+                Client client = new Client(username, password, "", 0, socketChannel);
                 if (client.register(username, password)) {
-                    System.out.println("Registration successful. Please log in.");
+                    System.out.println("Registration successful. Please log in." + client.getToken());
                 } else {
                     System.err.println("Registration failed. Please try again.");
                     return;
                 }
             }
-    
             
             System.out.println("Please log in.");
             System.out.println("Enter username:");
             String username = consoleReader.readLine().trim();
             System.out.println("Enter password:");
             String password = consoleReader.readLine().trim();
-    
-            Client client = new Client(username, password, "", 1500, socketChannel);
-            if (client.login()) {
-                System.out.println("Logged in successfully. Token: " + client.getToken()); 
+
+            int elo = getUserElo(username, password);
+            if (elo != -1) {
+                Client client = new Client(username, password, "", elo, socketChannel);
+                if (client.login()) {
+                    System.out.println("Logged in successfully. Elo: " + elo + ", Token: " + client.getToken());
+                } else {
+                    System.err.println("Login failed.");
+                }
             } else {
-                System.err.println("Login failed.");
+                System.err.println("Invalid username or password.");
             }
             
         } catch (IOException e) {

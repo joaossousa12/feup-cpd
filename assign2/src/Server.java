@@ -81,8 +81,7 @@ public class Server {
                     }
                 } else if (inputLine.startsWith("REGISTER,")) {
                     String[] parts = inputLine.split(",");
-                    if (parts.length == 4) {
-                        server.auth.registerUser(parts[1], parts[2], Integer.parseInt(parts[3]));
+                    if (parts.length == 3 && server.auth.registerUser(parts[1], parts[2], 0) ) {
                         out.println("REGISTERED");
                     } else {
                         out.println("ERROR,Invalid input");

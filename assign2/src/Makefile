@@ -1,12 +1,17 @@
 JC = javac
+JFLAGS = -cp external-libraries/bcrypt.jar:.
 .SUFFIXES: .java .class
+
 .java.class:
-	$(JC) $*.java
+	$(JC)	$(JFLAGS)	$*.java
 
 CLASSES = \
-	Game.java \
+    Authentication.java \
+    Client.java \
+    ClientConnection.java \
+    Game.java \
 	Server.java \
-	ClientConnection.java
+	\
 
 default: classes
 

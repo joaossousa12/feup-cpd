@@ -10,25 +10,24 @@ public class Game {
     private static ClientConnection connection;
 
     public static void main(String[] args) {
-        // try {
-        //     connection = new ClientConnection("localhost", 8000);
-        //     connection.sendMessage("ready");
+        try {
+            connection = new ClientConnection("localhost", 8000);
+            connection.sendMessage("ready");
 
-        //     while (true) {
-        //         String response = connection.receiveMessage();
-        //         if (response != null && response.equals("start")) {
-        //             break;
-        //         }
-        //         System.out.println("Waiting for enough players to connect...");
-        //         Thread.sleep(30000);
-        //     }
+            while (true) {
+                String response = connection.receiveMessage();
+                if (response != null && response.equals("start")) {
+                    break;
+                }
+                System.out.println("Waiting for enough players to connect...");
+                Thread.sleep(30000);
+            }
             
-        //     startGame();
-        //     connection.closeConnection();
-        // } catch (IOException | InterruptedException e) {
-        //     e.printStackTrace();
-        // }
-        startGame();
+            startGame();
+            connection.closeConnection();
+        } catch (IOException | InterruptedException e) {
+            e.printStackTrace();
+        }
     }
 
     private static void startGame() {

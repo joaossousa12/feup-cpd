@@ -6,7 +6,7 @@ import java.io.FileReader;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.io.PrintWriter;
-
+import org.springframework.security.crypto.bcrypt.BCrypt;
 
 public class Authentication {
 
@@ -15,6 +15,7 @@ public class Authentication {
     private Map<String, Integer> userScores = new ConcurrentHashMap<>();
     
     public String login(String username, String password) {
+        loadUserData();
         if (userCredentials.containsKey(username) && userCredentials.get(username).equals(password)) {
             String token = generateToken();
             activeSessions.put(token, username);
@@ -32,8 +33,9 @@ public class Authentication {
     }
 
     private void loadUserData() {
-        try (BufferedReader br = new BufferedReader(new FileReader("database.csv"))) {
+        try (BufferedReader br = new BufferedReader(new FileReader("./database.csv"))) {
             String line;
+            br.readLine(); // Skip header
             while ((line = br.readLine()) != null) {
                 String[] parts = line.split(",");
                 if (parts.length >= 3) {
@@ -46,24 +48,52 @@ public class Authentication {
         }
     }
 
+    private String hashPassword(String plainPassword) {
+        return BCrypt.hashpw(plainPassword, BCrypt.gensalt());
+    }
+
+    private void saveUserData(String username, String password, int score) {
+        try (PrintWriter pw = new PrintWriter(new FileWriter("./database.csv", true))) {
+            // for (Map.Entry<String, String> entry : userCredentials.entrySet()) {
+            //     String username = entry.getKey();
+            //     // Hashing password not working for some reason
+            //     //String hashedPassword = hashPassword(entry.getValue());
+            //     String hashedPassword = entry.getValue();
+
+            //     int score = userScores.getOrDefault(username, 0);
+            //     pw.println(username + "," + hashedPassword + "," + score);
+            // }
+            pw.println(username + "," + password + "," + score);
+        } catch (IOException e) {
+            System.err.println("Failed to save user data: " + e.getMessage());
+        }
+    }
+
     private void saveUserData() {
-        try (PrintWriter pw = new PrintWriter(new FileWriter("database.csv"))) {
+        try (PrintWriter pw = new PrintWriter(new FileWriter("./database.csv"))) {
+            pw.println("username,password,score");
             for (Map.Entry<String, String> entry : userCredentials.entrySet()) {
-                int score = userScores.getOrDefault(entry.getKey(), 0);
-                pw.println(entry.getKey() + "," + entry.getValue() + "," + score);
+                String username = entry.getKey();
+                String hashedPassword = entry.getValue();
+
+                int score = userScores.getOrDefault(username, 0);
+                pw.println(username + "," + hashedPassword + "," + score);
             }
         } catch (IOException e) {
             System.err.println("Failed to save user data: " + e.getMessage());
         }
     }
 
-    public void registerUser(String username, String password, int initialScore) {
+    public boolean registerUser(String username, String password, int initialScore) {
+        loadUserData();
         if (!userCredentials.containsKey(username)) {
             userCredentials.put(username, password);
             userScores.put(username, initialScore);
-            saveUserData();
+            saveUserData(username, password, initialScore);
+            return true;
         } else {
             System.err.println("User already exists!");
+            return false;
         }
     }
 
