@@ -58,6 +58,8 @@ public class Client {
             String response = reader.readLine();
             System.out.println(response);
             if (response != null && response.startsWith("REGISTERED")) {
+                // After registration
+
                 return true;  
             } else if (response != null && response.startsWith("ERROR,")) {
                 System.err.println("Registration failed: " + response.split(",")[1]);
@@ -77,6 +79,7 @@ public class Client {
             writer.write("LOGIN," + username + "," + password);
             writer.newLine();
             writer.flush();
+            
     
             // Read response from the server
             String response = reader.readLine();
@@ -118,29 +121,31 @@ public class Client {
                 Client client = new Client(username, password, "", 0, socketChannel);
                 if (client.register(username, password)) {
                     System.out.println("Registration successful. Please log in." + client.getToken());
+                    if (client.login()) {
+                        System.out.println("Logged in successfully. Token: " + client.getToken());
+                    } else {
+                        System.err.println("Login failed after registration.");
+                        return;
+                    }
                 } else {
                     System.err.println("Registration failed. Please try again.");
                     return;
                 }
-            }
-            
-            System.out.println("Please log in.");
-            System.out.println("Enter username:");
-            String username = consoleReader.readLine().trim();
-            System.out.println("Enter password:");
-            String password = consoleReader.readLine().trim();
-
-            int elo = getUserElo(username, password);
-            if (elo != -1) {
-                Client client = new Client(username, password, "", elo, socketChannel);
+            }else {
+                System.out.println("Please log in.");
+                System.out.println("Enter username:");
+                String username = consoleReader.readLine().trim();
+                System.out.println("Enter password:");
+                String password = consoleReader.readLine().trim();
+    
+                Client client = new Client(username, password, "", 0, socketChannel);
                 if (client.login()) {
-                    System.out.println("Logged in successfully. Elo: " + elo + ", Token: " + client.getToken());
+                    System.out.println("Logged in successfully. Token: " + client.getToken());
                 } else {
                     System.err.println("Login failed.");
                 }
-            } else {
-                System.err.println("Invalid username or password.");
             }
+            
             
         } catch (IOException e) {
             System.err.println("Could not connect to server: " + e.getMessage());

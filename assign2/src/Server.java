@@ -65,45 +65,51 @@ public class Server {
             try (BufferedReader in = new BufferedReader(new InputStreamReader(clientSocket.getInputStream(), StandardCharsets.UTF_8));
                  PrintWriter out = new PrintWriter(new OutputStreamWriter(clientSocket.getOutputStream(), StandardCharsets.UTF_8), true)) {
                 
-                String inputLine = in.readLine();
-                System.out.println(inputLine);
-                if (inputLine.startsWith("LOGIN,")) {
-                    String[] parts = inputLine.split(",");
-                    if (parts.length == 3) {
-                        String token = server.auth.login(parts[1], parts[2]);
-                        if (token != null) {
-                            out.println("TOKEN," + token);  // Send token back to client
-                            server.connectedPlayers.incrementAndGet();
+                System.out.println("Connection accepted from " + clientSocket.getRemoteSocketAddress());
+        
+                String inputLine;
+                while ((inputLine = in.readLine()) != null) { // Keep reading as long as there's data
+                    System.out.println("Received from client: " + inputLine);
+        
+                    if (inputLine.startsWith("LOGIN,")) {
+                        String[] parts = inputLine.split(",");
+                        if (parts.length == 3) {
+                            String token = server.auth.login(parts[1], parts[2]);
+                            if (token != null) {
+                                out.println("TOKEN," + token);  // Send token back to client
+                                server.connectedPlayers.incrementAndGet();
+                            } else {
+                                out.println("ERROR,Invalid credentials");
+                                return;
+                            }
+                        }
+                    } else if (inputLine.startsWith("REGISTER,")) {
+                        String[] parts = inputLine.split(",");
+                        if (parts.length == 3 && server.auth.registerUser(parts[1], parts[2], 0)) {
+                            out.println("REGISTERED");
                         } else {
-                            out.println("ERROR,Invalid credentials");
+                            out.println("ERROR,Invalid input");
                             return;
                         }
-                    }
-                } else if (inputLine.startsWith("REGISTER,")) {
-                    String[] parts = inputLine.split(",");
-                    if (parts.length == 3 && server.auth.registerUser(parts[1], parts[2], 0) ) {
-                        out.println("REGISTERED");
                     } else {
                         out.println("ERROR,Invalid input");
                         return;
                     }
-                } else {
-                    out.println("ERROR,Invalid input");
-                    return;
-                }
-                if ("ready".equals(inputLine)) {
-                    int playerCount = server.connectedPlayers.incrementAndGet();
-                    System.out.println("Connected to client: " + clientSocket.getRemoteSocketAddress() + " - Total players: " + playerCount);
-                    
-                    if (playerCount == MIN_PLAYERS) {
-                        server.startTimer();
-                    }
-                    if (playerCount >= MIN_PLAYERS && playerCount <= MAX_PLAYERS && !server.gameStarted) {
-                        out.println("start"); // Signal client to start the game
+        
+                    if ("ready".equals(inputLine)) {
+                        int playerCount = server.connectedPlayers.incrementAndGet();
+                        System.out.println("Connected to client: " + clientSocket.getRemoteSocketAddress() + " - Total players: " + playerCount);
+                        
+                        if (playerCount == MIN_PLAYERS) {
+                            server.startTimer();
+                        }
+                        if (playerCount >= MIN_PLAYERS && playerCount <= MAX_PLAYERS && !server.gameStarted) {
+                            out.println("start"); // Signal client to start the game
+                        }
                     }
                 }
             } catch (IOException e) {
-                System.out.println("Error handling client #");
+                System.out.println("Error handling client #" + clientSocket.getRemoteSocketAddress());
                 e.printStackTrace();
             } finally {
                 try {
@@ -114,6 +120,7 @@ public class Server {
                 }
             }
         }
+        
     }
 
     private void startTimer() {
