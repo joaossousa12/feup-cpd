@@ -4,6 +4,7 @@ import java.net.InetSocketAddress;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Paths;
+import java.nio.file.StandardOpenOption;
 import java.time.LocalTime;
 import java.time.temporal.ChronoUnit;
 import java.util.List;
@@ -98,18 +99,35 @@ public class Client {
         return false;
     }
 
-    // private static int getUserElo(String username, String password) throws IOException {
-    //     try (BufferedReader fileReader = new BufferedReader(new FileReader("./database.csv"))) {
-    //         String line;
-    //         while ((line = fileReader.readLine()) != null) {
-    //             String[] userData = line.split(",");
-    //             if (userData[0].equals(username) && userData[1].equals(password)) {
-    //                 return Integer.parseInt(userData[2]);
-    //             }
-    //         }
-    //     }
-    //     return -1; // User not found
-    // }
+    private static int getUserElo(String username) throws IOException {
+        try (BufferedReader fileReader = new BufferedReader(new FileReader("./database.csv"))) {
+            String line;
+            while ((line = fileReader.readLine()) != null) {
+                String[] userData = line.split(",");
+                if (userData[0].equals(username)) {
+                    return Integer.parseInt(userData[2]);
+                }
+            }
+        }
+        return -1; // User not found
+    }
+
+    private static String getUserPassword(String username) throws IOException {
+        try (BufferedReader fileReader = new BufferedReader(new FileReader("./database.csv"))) {
+            String line;
+            while ((line = fileReader.readLine()) != null) {
+                String[] userData = line.split(",");
+                if (userData[0].equals(username)) {
+                    try {
+                        return Authentication.decrypt(userData[1], "Xb8WzSs3u8nH4sGw");
+                    } catch (Exception e) {
+                        System.err.println("Error decrypting password: " + e.getMessage());
+                    }
+                }
+            }
+        }
+        return null; // User not found
+    }
 
     private void sendReadySignal() {
         try {
@@ -156,7 +174,7 @@ public class Client {
 
         try (BufferedReader consoleReader = new BufferedReader(new InputStreamReader(System.in))) {
             boolean tokenValid = false;
-
+            String tokenGlobal = null;
             SocketChannel socketChannel = SocketChannel.open(new InetSocketAddress("localhost", 8000));
 
             File tokenFile = new File("clients/" + clUsername + "/token.csv");
@@ -165,24 +183,40 @@ public class Client {
                 String token = br.readLine();
                 if (token != null) {
                     List<String> lines = Files.readAllLines(Paths.get("serverTokens/tokens.csv"));
+                    int lineToModify = -1;
                     for (int i = 0; i < lines.size(); i++) {
                         String[] parts = lines.get(i).split(",");
                         if (parts.length > 2 && parts[0].equals(clUsername) && parts[1].equals(token)) {
                             LocalTime tokenTime = LocalTime.parse(parts[2]);
-                            LocalTime currenTime = LocalTime.now();
-                            long minutesBetween = ChronoUnit.MINUTES.between(tokenTime, currenTime);
-                            if(Math.abs(minutesBetween) <= 30)
+                            LocalTime currentTime = LocalTime.now();
+                            long minutesBetween = ChronoUnit.MINUTES.between(tokenTime, currentTime);
+
+                            if(Math.abs(minutesBetween) <= 30){
+                                tokenGlobal = token;
                                 tokenValid = true;
-                            break;
+                                lineToModify = i;
+                                parts[2] = currentTime.toString();
+                                lines.set(i, String.join(",", parts));
+                                break;
+                            }
                         }
                     }
+
+                    if (tokenValid && lineToModify != -1) {
+                        Files.write(Paths.get("serverTokens/tokens.csv"), lines, StandardOpenOption.WRITE, StandardOpenOption.TRUNCATE_EXISTING);
+                    }
                 }
+
                 br.close();
             }
 
             if(tokenValid) {
                 System.out.println("Token authentication successful.");
-                return;
+                Client client = new Client(clUsername, getUserPassword(clUsername), tokenGlobal, getUserElo(clUsername), socketChannel);
+                if(client.login()){
+                    client.sendReadySignal();
+                    client.listenToServer();
+                }
             }
             
             else{
@@ -230,7 +264,7 @@ public class Client {
                     System.out.println("Enter password:");
                     String password = consoleReader.readLine().trim();
         
-                    Client client = new Client(clUsername, password, "", 0, socketChannel);
+                    Client client = new Client(clUsername, password, "", getUserElo(clUsername), socketChannel);
                     if (client.login()) {
                         System.out.println("Logged in successfully. Token: " + client.getToken());
                         client.sendReadySignal();
