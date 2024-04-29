@@ -1,5 +1,6 @@
 import java.util.*;
 import java.io.*;
+import java.net.Socket;
 import java.nio.file.*;
 import java.nio.charset.StandardCharsets;
 
@@ -7,7 +8,7 @@ public class Game {
     private static final String CSV_FILE = "./triviadb.csv";
     private static final int NUMBER_OF_QUESTIONS = 5;
     private static  int numberOfPlayers;
-    private Server server;
+    private static Server server;
     private static ClientConnection connection;
 
     public Game(Server server, int numberOfPlayers) {
@@ -46,13 +47,17 @@ public class Game {
             String[] question = questions.get(i);
             if (question.length < 6) {
                 System.out.println("Skipping a malformed question entry.");
+                server.notifyAllClients("Skipping a malformed question entry.");
                 continue;
             }
-            System.out.println("Question " + (i + 1) + ": " + question[0]);
-            System.out.println("1: " + question[2]);
-            System.out.println("2: " + question[3]);
-            System.out.println("3: " + question[4]);
-            System.out.println("4: " + question[5]);
+
+            String questionText = "Question " + (i + 1) + ": " + question[0] + "\n1: " + question[2] + "\n2: " + question[3] + "\n3: " + question[4] + "\n4: " + question[5];
+            System.out.println(questionText);
+            server.notifyAllClients(questionText);
+
+            Map<Socket, String> answers = server.collectAnswers();
+
+            System.out.println("Answers received from clients: " + answers.values());
         
             for (int player = 0; player < numberOfPlayers; player++) {
                 int answer = 0;

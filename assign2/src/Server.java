@@ -44,7 +44,6 @@ public class Server {
     }
 
     public void notifyAllClients(String message) {
-        System.out.println("Clients: " + clientHandlers.size());
         for (ClientHandler handler : clientHandlers.values()) {
             handler.out.println(message);
         }
@@ -54,6 +53,7 @@ public class Server {
         private Socket clientSocket;
         private Server server;
         private PrintWriter out;
+        private BufferedReader in;
 
 
 
@@ -65,6 +65,21 @@ public class Server {
             } catch (IOException e) {
                 System.err.println("Error initializing PrintWriter for client: " + clientSocket);
                 e.printStackTrace();
+            }
+            try {
+                this.in = new BufferedReader(new InputStreamReader(clientSocket.getInputStream(), StandardCharsets.UTF_8));
+            } catch (IOException e) {
+                System.err.println("Error initializing BufferedReader for client: " + clientSocket);
+                e.printStackTrace();
+            }
+        }
+
+        public String collectAnswer() {
+            try {
+                out.println("Please enter your answer:");
+                return in.readLine();
+            } catch (IOException e) {
+                return "Error collecting answer";
             }
         }
 
@@ -152,6 +167,14 @@ public class Server {
             game.startGame();
 
         }
+    }
+
+    public Map<Socket, String> collectAnswers() {
+        Map<Socket, String> answers = new ConcurrentHashMap<>();
+        clientHandlers.forEach((socket, handler) -> {
+            answers.put(socket, handler.collectAnswer());
+        });
+        return answers;
     }
 
     public static void main(String[] args) {
