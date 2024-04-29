@@ -6,21 +6,40 @@ import java.io.FileReader;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.io.PrintWriter;
-import org.springframework.security.crypto.bcrypt.BCrypt;
+import javax.crypto.Cipher;
+import javax.crypto.spec.SecretKeySpec;
+import java.util.Base64;
 
 public class Authentication {
 
     private Map<String, String> userCredentials = new ConcurrentHashMap<>(); 
     private Map<String, String> activeSessions = new ConcurrentHashMap<>();
     private Map<String, Integer> userScores = new ConcurrentHashMap<>();
+
+    public static String decrypt(String encryptedPassword, String secretKey) throws Exception {
+        SecretKeySpec keySpec = new SecretKeySpec(secretKey.getBytes(), "AES");
+        
+        Cipher cipher = Cipher.getInstance("AES");
+        cipher.init(Cipher.DECRYPT_MODE, keySpec);
+        
+        byte[] decryptedBytes = cipher.doFinal(Base64.getDecoder().decode(encryptedPassword));
+        
+        return new String(decryptedBytes);
+    }
     
     public String login(String username, String password) {
         loadUserData();
-        if (userCredentials.containsKey(username) && userCredentials.get(username).equals(password)) {
-            String token = generateToken();
-            activeSessions.put(token, username);
-            return token; 
+        
+        try {
+            if (userCredentials.containsKey(username) && decrypt(userCredentials.get(username), "Xb8WzSs3u8nH4sGw").equals(password)) {
+                String token = generateToken();
+                activeSessions.put(token, username);
+                return token; 
+            }
+        } catch (Exception e) {
+            System.err.println("Failed to decrypt password: " + e.getMessage());
         }
+        
         return null; 
     }
 
@@ -48,24 +67,24 @@ public class Authentication {
         }
     }
 
-    private String hashPassword(String plainPassword) {
-        return BCrypt.hashpw(plainPassword, BCrypt.gensalt());
+    public static String encrypt(String password, String secretKey) throws Exception {
+        SecretKeySpec keySpec = new SecretKeySpec(secretKey.getBytes(), "AES");
+        
+        Cipher cipher = Cipher.getInstance("AES");
+        cipher.init(Cipher.ENCRYPT_MODE, keySpec);
+        
+        byte[] encryptedBytes = cipher.doFinal(password.getBytes());
+        
+        return Base64.getEncoder().encodeToString(encryptedBytes);
     }
 
     private void saveUserData(String username, String password, int score) {
         try (PrintWriter pw = new PrintWriter(new FileWriter("./database.csv", true))) {
-            // for (Map.Entry<String, String> entry : userCredentials.entrySet()) {
-            //     String username = entry.getKey();
-            //     // Hashing password not working for some reason
-            //     //String hashedPassword = hashPassword(entry.getValue());
-            //     String hashedPassword = entry.getValue();
-
-            //     int score = userScores.getOrDefault(username, 0);
-            //     pw.println(username + "," + hashedPassword + "," + score);
-            // }
-            pw.println(username + "," + password + "," + score);
+            pw.println(username + "," + encrypt(password, "Xb8WzSs3u8nH4sGw") + "," + score);
         } catch (IOException e) {
             System.err.println("Failed to save user data: " + e.getMessage());
+        } catch (Exception e) {
+            System.err.println("Failed to encrypt password: " + e.getMessage());
         }
     }
 
