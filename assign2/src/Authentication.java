@@ -6,14 +6,18 @@ import java.io.FileReader;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.io.PrintWriter;
+import java.nio.file.Files;
+import java.nio.file.Paths;
+import java.time.LocalTime;
+
 import javax.crypto.Cipher;
 import javax.crypto.spec.SecretKeySpec;
 import java.util.Base64;
+import java.util.List;
 
 public class Authentication {
 
     private Map<String, String> userCredentials = new ConcurrentHashMap<>(); 
-    private Map<String, String> activeSessions = new ConcurrentHashMap<>();
     private Map<String, Integer> userScores = new ConcurrentHashMap<>();
 
     public static String decrypt(String encryptedPassword, String secretKey) throws Exception {
@@ -26,6 +30,48 @@ public class Authentication {
         
         return new String(decryptedBytes);
     }
+
+    private static void writeTokenToClient(String username, String token) {
+        String filePath = "clients/" + username + "/token.csv";
+        try {
+            Files.deleteIfExists(Paths.get(filePath));
+
+            Files.createDirectories(Paths.get(filePath).getParent());
+
+            FileWriter writer = new FileWriter(filePath, true);
+            writer.write(token);
+            writer.close();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+
+    private static void writeTokenToServer(String username, String token, String currentHour) {
+        String filePath = "serverTokens/tokens.csv";
+
+        try {
+            List<String> lines = Files.readAllLines(Paths.get(filePath));
+
+            for (int i = 0; i < lines.size(); i++) {
+                String[] parts = lines.get(i).split(",");
+                if (parts.length > 0 && parts[0].equals(username)) {
+                    lines.remove(i);
+                    break;
+                }
+            }
+
+            FileWriter writer = new FileWriter(filePath);
+            for (String line : lines) {
+                writer.write(line + "\n");
+            }
+
+            writer.write(username + "," + token + "," + currentHour + "\n");
+            writer.close();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+
     
     public String login(String username, String password) {
         loadUserData();
@@ -33,7 +79,11 @@ public class Authentication {
         try {
             if (userCredentials.containsKey(username) && decrypt(userCredentials.get(username), "Xb8WzSs3u8nH4sGw").equals(password)) {
                 String token = generateToken();
-                activeSessions.put(token, username);
+                String currentHour = LocalTime.now().toString();
+
+                writeTokenToClient(username, token);
+                writeTokenToServer(username, token, currentHour);
+
                 return token; 
             }
         } catch (Exception e) {
@@ -47,9 +97,6 @@ public class Authentication {
         return UUID.randomUUID().toString();
     }
 
-    public boolean validateToken(String token) {
-        return activeSessions.containsKey(token);
-    }
 
     private void loadUserData() {
         try (BufferedReader br = new BufferedReader(new FileReader("./database.csv"))) {
