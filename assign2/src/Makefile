@@ -1,9 +1,8 @@
 JC = javac
-JFLAGS = -cp external-libraries/bcrypt.jar:.
 .SUFFIXES: .java .class
 
 .java.class:
-	$(JC)	$(JFLAGS)	$*.java
+	$(JC)	$*.java
 
 CLASSES = \
     Authentication.java \
