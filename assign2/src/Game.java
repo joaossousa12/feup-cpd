@@ -6,10 +6,16 @@ import java.nio.charset.StandardCharsets;
 public class Game {
     private static final String CSV_FILE = "./triviadb.csv";
     private static final int NUMBER_OF_QUESTIONS = 5;
-    private static final int NUMBER_OF_PLAYERS = 4;
+    private static  int numberOfPlayers;
+    private Server server;
     private static ClientConnection connection;
 
-    public static void main(String[] args) {
+    public Game(Server server, int numberOfPlayers) {
+        this.server = server;
+        this.numberOfPlayers = numberOfPlayers;
+    }
+
+/*     public static void main(String[] args) {
         try {
             connection = new ClientConnection("localhost", 8000);
             connection.sendMessage("ready");
@@ -28,13 +34,13 @@ public class Game {
         } catch (IOException | InterruptedException e) {
             e.printStackTrace();
         }
-    }
+    } */
 
-    private static void startGame() {
+    public static void startGame() {
         List<String[]> questions = readQuestionsFromCSV(CSV_FILE);
         Collections.shuffle(questions);
         Scanner scanner = new Scanner(System.in);
-        int[] scores = new int[NUMBER_OF_PLAYERS];
+        int[] scores = new int[numberOfPlayers];
 
         for (int i = 0; i < NUMBER_OF_QUESTIONS; i++) {
             String[] question = questions.get(i);
@@ -48,7 +54,7 @@ public class Game {
             System.out.println("3: " + question[4]);
             System.out.println("4: " + question[5]);
         
-            for (int player = 0; player < NUMBER_OF_PLAYERS; player++) {
+            for (int player = 0; player < numberOfPlayers; player++) {
                 int answer = 0;
                 boolean validInput = false; 
             
@@ -77,7 +83,7 @@ public class Game {
             
             System.out.println();
 
-            for (int player = 0; player < NUMBER_OF_PLAYERS; player++) {
+            for (int player = 0; player < numberOfPlayers; player++) {
                 System.out.println("Player " + (player + 1) + " scored " + scores[player]);
             }
     

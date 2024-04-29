@@ -11,7 +11,7 @@ import java.util.Map;
 
 public class Server {
     private ServerSocket serverSocket;
-    private static final int MIN_PLAYERS = 4;
+    private static final int MIN_PLAYERS = 1;
     private static final int MAX_PLAYERS = 10;
     private AtomicInteger connectedPlayers = new AtomicInteger(0);
     private Timer timer = new Timer();
@@ -19,6 +19,7 @@ public class Server {
     private volatile boolean gameStarted = false;
     private Map<Socket, ClientHandler> clientHandlers = new ConcurrentHashMap<>();
     private Authentication auth = new Authentication();
+    private Game game;
 
     public Server(int port) throws IOException {
         serverSocket = new ServerSocket(port);
@@ -43,8 +44,9 @@ public class Server {
     }
 
     public void notifyAllClients(String message) {
+        System.out.println("Clients: " + clientHandlers.size());
         for (ClientHandler handler : clientHandlers.values()) {
-            //handler.sendMessage(message);
+            handler.out.println(message);
         }
     }
 
@@ -58,7 +60,12 @@ public class Server {
         public ClientHandler(Socket socket, Server server) {
             this.clientSocket = socket;
             this.server = server;
-            //this.out = new PrintWriter(new OutputStreamWriter(clientSocket.getOutputStream(), StandardCharsets.UTF_8), true);
+            try {
+                this.out = new PrintWriter(new OutputStreamWriter(clientSocket.getOutputStream(), StandardCharsets.UTF_8), true);
+            } catch (IOException e) {
+                System.err.println("Error initializing PrintWriter for client: " + clientSocket);
+                e.printStackTrace();
+            }
         }
 
         public void run() {
@@ -91,13 +98,11 @@ public class Server {
                             out.println("ERROR,Invalid input");
                             return;
                         }
-                    } else {
-                        out.println("ERROR,Invalid input");
-                        return;
-                    }
+                    } 
         
-                    if ("ready".equals(inputLine)) {
-                        int playerCount = server.connectedPlayers.incrementAndGet();
+                    if (inputLine.startsWith("ready")) {
+                        System.out.println("Client is ready to start the game.");
+                        int playerCount = server.connectedPlayers.get();
                         System.out.println("Connected to client: " + clientSocket.getRemoteSocketAddress() + " - Total players: " + playerCount);
                         
                         if (playerCount == MIN_PLAYERS) {
@@ -113,6 +118,7 @@ public class Server {
                 e.printStackTrace();
             } finally {
                 try {
+                    System.out.println("Closing connection to client #" + clientSocket.getRemoteSocketAddress());
                     clientSocket.close();
                     clientHandlers.remove(clientSocket);
                 } catch (IOException e) {
@@ -142,12 +148,9 @@ public class Server {
             gameStarted = true;
             System.out.println("Game started!");
             notifyAllClients("Game started!");
+            game = new Game(this, connectedPlayers.get());
+            game.startGame();
 
-            // Notify all clients that the game has started
-            // (Assuming you have a list of connected clients somewhere)
-            // for (ClientHandler client : connectedClients) {
-            //     client.sendMessage("game_start");
-            // }
         }
     }
 

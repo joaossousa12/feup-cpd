@@ -111,6 +111,38 @@ public class Client {
     //     return -1; // User not found
     // }
 
+    private void sendReadySignal() {
+        try {
+            BufferedWriter writer = new BufferedWriter(new OutputStreamWriter(socketChannel.socket().getOutputStream(), StandardCharsets.UTF_8));
+            writer.write("ready");
+            writer.newLine();
+            writer.flush();
+        } catch (IOException e) {
+            System.err.println("Error sending ready signal: " + e.getMessage());
+        }
+    }
+
+    private void listenToServer() {
+        try {
+            BufferedReader reader = new BufferedReader(new InputStreamReader(socketChannel.socket().getInputStream(), StandardCharsets.UTF_8));
+            String message;
+            while ((message = reader.readLine()) != null) {
+                System.out.println("Server says: " + message);
+                if ("Game started!".equals(message)) {
+                    
+                    System.out.println("The game has started. Prepare to play.");
+                }
+                else if( "start".equals(message)) {
+                    System.out.println("Waiting for other players to join the game.");
+
+                }
+                
+            }
+        } catch (IOException e) {
+            System.err.println("Error listening to server: " + e.getMessage());
+        }
+    }
+
     public static void main(String[] args) {
 
         // since we are running the client from the command line, we need to pass the client directory as an argument
@@ -174,6 +206,8 @@ public class Client {
                         System.out.println("Registration successful. Please log in." + client.getToken());
                         if (client.login()) {
                             System.out.println("Logged in successfully. Token: " + client.getToken());
+                            client.sendReadySignal();
+                            client.listenToServer();
                         } else {
                             System.err.println("Login failed after registration.");
                             return;
@@ -199,14 +233,21 @@ public class Client {
                     Client client = new Client(clUsername, password, "", 0, socketChannel);
                     if (client.login()) {
                         System.out.println("Logged in successfully. Token: " + client.getToken());
+                        client.sendReadySignal();
+                        client.listenToServer();
                     } else {
                         System.err.println("Login failed.");
                     }
                 }
-                else {
-                    System.err.println("Invalid response. Please try again. (" + response + " is not yes neither no)");
-                    return;
+                
+                else if (response.equals("Game started!")) {
+                    System.out.println("Game started!");
                 }
+                
+                else {
+                    System.err.println("Invalid response. Please try again.");
+                    return;
+                }    
             }
             
         } catch (IOException e) {
