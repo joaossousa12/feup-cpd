@@ -6,6 +6,7 @@ import java.util.Timer;
 import java.util.TimerTask;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.Map;
 
@@ -76,7 +77,6 @@ public class Server {
 
         public String collectAnswer() {
             try {
-                out.println("Please enter your answer:");
                 return in.readLine();
             } catch (IOException e) {
                 return "Error collecting answer";
@@ -155,7 +155,7 @@ public class Server {
                     }
                 }
             }
-        }, 30000); // Wait for 30 seconds
+        }, 1000); // Wait for 30 seconds
     }
 
     private synchronized void startGame() {
@@ -169,12 +169,13 @@ public class Server {
         }
     }
 
-    public Map<Socket, String> collectAnswers() {
-        Map<Socket, String> answers = new ConcurrentHashMap<>();
+    public Map<Socket, Future<String>> collectAnswers() {
+        Map<Socket, Future<String>> answerFutures = new ConcurrentHashMap<>();
         clientHandlers.forEach((socket, handler) -> {
-            answers.put(socket, handler.collectAnswer());
+            Future<String> futureAnswer = executor.submit(() -> handler.collectAnswer());
+            answerFutures.put(socket, futureAnswer);
         });
-        return answers;
+        return answerFutures;
     }
 
     public static void main(String[] args) {

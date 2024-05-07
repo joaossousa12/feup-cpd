@@ -14,6 +14,9 @@ public class Client {
     private String token;
     private int elo;
     private SocketChannel socketChannel;
+    private BufferedReader consoleReader = new BufferedReader(new InputStreamReader(System.in));
+    private PrintWriter writer;
+    private BufferedReader reader;
     //private int elapsedTime = 0;
 
     Client(String username, String password, String token, int elo, SocketChannel socketChannel){
@@ -22,6 +25,12 @@ public class Client {
         this.token = token;
         this.elo = elo;
         this.socketChannel = socketChannel;
+        try {
+            this.writer = new PrintWriter(new OutputStreamWriter(socketChannel.socket().getOutputStream(), StandardCharsets.UTF_8), true);
+            this.reader = new BufferedReader(new InputStreamReader(socketChannel.socket().getInputStream(), StandardCharsets.UTF_8));
+        } catch (IOException e) {
+            System.err.println("Error initializing I/O: " + e.getMessage());
+        }
     }
 
     public String getUsername() {
@@ -142,24 +151,30 @@ public class Client {
 
     private void listenToServer() {
         try {
-            BufferedReader reader = new BufferedReader(new InputStreamReader(socketChannel.socket().getInputStream(), StandardCharsets.UTF_8));
             String message;
             while ((message = reader.readLine()) != null) {
-                System.out.println("Server says: " + message);
-                if ("Game started!".equals(message)) {
-                    
-                    System.out.println("The game has started. Prepare to play.");
-                }
-                else if( "start".equals(message)) {
-                    System.out.println("Waiting for other players to join the game.");
+                System.out.println(message); 
 
+                if (message.startsWith("Question")) {
+                    for (int i = 0; i < 4; i++) {
+                        if ((message = reader.readLine()) != null) {
+                            System.out.println(message);
+                        }
+                    }
+                    System.out.print("Your answer: "); 
+                    String answer = consoleReader.readLine();
+                    sendAnswer(answer);
                 }
-                
             }
         } catch (IOException e) {
             System.err.println("Error listening to server: " + e.getMessage());
         }
     }
+    
+    private void sendAnswer(String answer) {
+        writer.println(answer);
+    }
+    
 
     public static void main(String[] args) {
 
