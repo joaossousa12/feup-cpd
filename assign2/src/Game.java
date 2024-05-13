@@ -1,5 +1,7 @@
 import java.util.*;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
@@ -54,24 +56,54 @@ public class Game {
     
             String questionText = "Question " + (i + 1) + ": " + question[0] + "\n1: " + question[2] + "\n2: " + question[3] + "\n3: " + question[4] + "\n4: " + question[5];
             server.notifyAllClients(questionText);
-            Map<Socket, Future<String>> answers = server.collectAnswers();
-            answers.forEach((socket, future) -> {
+    
+            ExecutorService collectorExecutor = Executors.newSingleThreadExecutor();
+            collectorExecutor.execute(() -> {
                 try {
-                    String clientAnswer = future.get(20, TimeUnit.SECONDS);
-                    int answerIndex = Integer.parseInt(clientAnswer.trim()) - 1;
-                    if (question[1].equals(question[answerIndex + 2])) {
-                        //server.updateScore(socket);
-                        System.out.println("Player " + socket + " answered correctly!");
-                    }
-                } catch (TimeoutException te) {
-                    System.out.println("Player " + socket + " did not answer in time.");
-                } catch (InterruptedException | ExecutionException e) {
-                    System.out.println("Failed to get answer from client " + socket + ": " + e.getMessage());
+                    Thread.sleep(10000);
+                    collectAndProcessAnswers(question, server, scores);
+                } catch (InterruptedException ie) {
+                    Thread.currentThread().interrupt();
                 }
             });
-            System.out.println("Question " + (i + 1) + " completed.");
+    
+            collectorExecutor.shutdown();
+            try {
+                if (!collectorExecutor.awaitTermination(15, TimeUnit.SECONDS)) {
+                    collectorExecutor.shutdownNow();
+                }
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                collectorExecutor.shutdownNow();  
+            }
         }
+    }    
+    
+    
+    private static void collectAndProcessAnswers(String[] question, Server server, int[] scores) {
+        Map<Socket, Future<String>> answers = server.collectAnswers();
+    
+        answers.forEach((socket, future) -> {
+            try {
+                String clientAnswer = future.get(10, TimeUnit.SECONDS); 
+                int answerIndex = Integer.parseInt(clientAnswer.trim()) - 1;
+    
+                if (question[1].equals(question[answerIndex + 2])) {
+                    System.out.println("Player " + socket + " answered correctly!");
+                } else {
+                    System.out.println("Player " + socket + " answered incorrectly.");
+                }
+            } catch (TimeoutException e) {
+                System.out.println("No answer received from client " + socket + " within the time limit.");
+            } catch (InterruptedException | ExecutionException e) {
+                System.out.println("Failed to get answer from client " + socket + ": " + e.getMessage());
+                Thread.currentThread().interrupt(); 
+            }
+        });
+    
+        System.out.println("Question " + question[0] + " completed.");
     }
+           
 
     private static List<String[]> readQuestionsFromCSV(String fileName) {
         List<String[]> questions = new ArrayList<>();

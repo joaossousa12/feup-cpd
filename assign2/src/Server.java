@@ -12,7 +12,7 @@ import java.util.Map;
 
 public class Server {
     private ServerSocket serverSocket;
-    private static final int MIN_PLAYERS = 1;
+    private static final int MIN_PLAYERS = 2;
     private static final int MAX_PLAYERS = 10;
     private AtomicInteger connectedPlayers = new AtomicInteger(0);
     private Timer timer = new Timer();
@@ -81,7 +81,7 @@ public class Server {
             } catch (IOException e) {
                 return "Error collecting answer";
             }
-        }
+        }        
 
         public void run() {
             try (BufferedReader in = new BufferedReader(new InputStreamReader(clientSocket.getInputStream(), StandardCharsets.UTF_8));
@@ -125,6 +125,16 @@ public class Server {
                         }
                         if (playerCount >= MIN_PLAYERS && playerCount <= MAX_PLAYERS && !server.gameStarted) {
                             out.println("start"); // Signal client to start the game
+                        }
+                    }
+
+                    if(inputLine.startsWith("ANSWER,")){
+                        String[] parts = inputLine.split(",");
+                        if (parts.length == 3) {
+                            out.println(parts[1] + " responded with " + parts[2]);
+                        } else {
+                            out.println("ERROR,Invalid input");
+                            return;
                         }
                     }
                 }
@@ -172,11 +182,11 @@ public class Server {
     public Map<Socket, Future<String>> collectAnswers() {
         Map<Socket, Future<String>> answerFutures = new ConcurrentHashMap<>();
         clientHandlers.forEach((socket, handler) -> {
-            Future<String> futureAnswer = executor.submit(() -> handler.collectAnswer());
+            Future<String> futureAnswer = executor.submit(handler::collectAnswer);
             answerFutures.put(socket, futureAnswer);
         });
         return answerFutures;
-    }
+    }    
 
     public static void main(String[] args) {
         try {

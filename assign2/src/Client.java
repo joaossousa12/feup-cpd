@@ -161,9 +161,20 @@ public class Client {
                             System.out.println(message);
                         }
                     }
-                    System.out.print("Your answer: "); 
-                    String answer = consoleReader.readLine();
-                    sendAnswer(answer);
+                    int answer = 0;
+                    while (answer < 1 || answer > 4) {
+                        System.out.print("Your answer (1-4): "); 
+                        try {
+                            String input = consoleReader.readLine();
+                            answer = Integer.parseInt(input);
+                            if (answer < 1 || answer > 4) {
+                                System.out.println("Invalid input. Please enter a number between 1 and 4.");
+                            }
+                        } catch (NumberFormatException e) {
+                            System.out.println("Invalid input. Please enter a valid integer.");
+                        }
+                    }
+                    sendAnswer("ANSWER," + username + "," + answer);
                 }
             }
         } catch (IOException e) {
