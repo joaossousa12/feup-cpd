@@ -8,6 +8,8 @@ import java.nio.file.StandardOpenOption;
 import java.time.LocalTime;
 import java.time.temporal.ChronoUnit;
 import java.util.List;
+import java.util.TimerTask;
+import java.util.Timer;
 
 public class Client {
     private String username, password;
@@ -150,31 +152,67 @@ public class Client {
     }
 
     private void listenToServer() {
+        int defaultAnswer = 0;
         try {
             String message;
             while ((message = reader.readLine()) != null) {
                 System.out.println(message); 
-
+    
                 if (message.startsWith("Question")) {
-                    for (int i = 0; i < 4; i++) {
+                    for (int i = 0; i < 4; i++) {  // Display options
                         if ((message = reader.readLine()) != null) {
                             System.out.println(message);
                         }
                     }
-                    int answer = 0;
-                    while (answer < 1 || answer > 4) {
-                        System.out.print("Your answer (1-4): "); 
+                    Timer timer = new Timer();
+                    TimerTask sendDefaultAnswer = new TimerTask() {
+                        public void run() {
+                        
+                            sendAnswer("ANSWER," + username + "," + defaultAnswer);
+                            System.out.println("Time's up! No answer was provided. Default answer sent.");
+                        }
+                    };
+                    timer.schedule(sendDefaultAnswer, 10000);  // 10-second timeout
+    
+                    System.out.print("Your answer (1-4): ");
+                    try {
+                        
+                        long startTime = System.currentTimeMillis();
                         try {
-                            String input = consoleReader.readLine();
-                            answer = Integer.parseInt(input);
-                            if (answer < 1 || answer > 4) {
-                                System.out.println("Invalid input. Please enter a number between 1 and 4.");
+                            while (!consoleReader.ready() && (System.currentTimeMillis() - startTime) < 10000) {
+                                Thread.sleep(200);  
+                            }
+                            if (consoleReader.ready()) {
+                                String input = consoleReader.readLine();
+                                int answer = Integer.parseInt(input);
+                                if (answer >= 1 && answer <= 4) {
+                                    sendDefaultAnswer.cancel(); // Cancel the timer task if input is valid
+                                    sendAnswer("ANSWER," + username + "," + answer);
+                                } else {
+                                    System.out.println("Invalid input. Please enter a number between 1 and 4.");
+                                }
                             }
                         } catch (NumberFormatException e) {
                             System.out.println("Invalid input. Please enter a valid integer.");
+                        } catch (InterruptedException e) {
+                            System.err.println("Thread was interrupted during sleep: " + e.getMessage());
+                            Thread.currentThread().interrupt(); 
                         }
+                        if (consoleReader.ready()) {
+                            String input = consoleReader.readLine();
+                            int answer = Integer.parseInt(input);
+                            if (answer >= 1 && answer <= 4) {
+                                sendDefaultAnswer.cancel(); 
+                                sendAnswer("ANSWER," + username + "," + answer);
+                            } else {
+                                System.out.println("Invalid input. Please enter a number between 1 and 4.");
+                            }
+                        }
+                    } catch (NumberFormatException e) {
+                        System.out.println("Invalid input. Please enter a valid integer.");
+                    } finally {
+                        timer.cancel(); 
                     }
-                    sendAnswer("ANSWER," + username + "," + answer);
                 }
             }
         } catch (IOException e) {
