@@ -96,7 +96,9 @@ public class Game {
             } catch (TimeoutException e) {
                 System.out.println("No answer received from client " + socket + " within the time limit.");
             } catch (InterruptedException | ExecutionException e) {
-                System.out.println("Failed to get answer from client " + socket + ": " + e.getMessage());
+                if (e.getMessage() != null) 
+                    System.out.println("Failed to get answer from client " + socket + ": " + e.getMessage());
+
                 Thread.currentThread().interrupt(); 
             }
         });

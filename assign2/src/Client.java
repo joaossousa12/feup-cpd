@@ -169,7 +169,7 @@ public class Client {
                         public void run() {
                         
                             sendAnswer("ANSWER," + username + "," + defaultAnswer);
-                            System.out.println("Time's up! No answer was provided. Default answer sent.");
+                            System.out.println("Time's up! No answer was provided.");
                         }
                     };
                     timer.schedule(sendDefaultAnswer, 10000);  // 10-second timeout

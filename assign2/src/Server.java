@@ -131,7 +131,7 @@ public class Server {
                     if(inputLine.startsWith("ANSWER,")){
                         String[] parts = inputLine.split(",");
                         if (parts.length == 3) {
-                            out.println(parts[1] + " responded with " + parts[2]);
+                            //out.println(parts[1] + " responded with " + parts[2]);
                         } else {
                             out.println("ERROR,Invalid input");
                             return;
