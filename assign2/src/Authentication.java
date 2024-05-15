@@ -13,12 +13,15 @@ import java.time.LocalTime;
 import javax.crypto.Cipher;
 import javax.crypto.spec.SecretKeySpec;
 import java.util.Base64;
+import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
 
 public class Authentication {
 
-    private Map<String, String> userCredentials = new ConcurrentHashMap<>(); 
-    private Map<String, Integer> userScores = new ConcurrentHashMap<>();
+    private Map<String, String> userCredentials = Collections.synchronizedMap(new HashMap<>());
+    private Map<String, Integer> userScores = Collections.synchronizedMap(new HashMap<>());
+
 
     public static String decrypt(String encryptedPassword, String secretKey) throws Exception {
         SecretKeySpec keySpec = new SecretKeySpec(secretKey.getBytes(), "AES");

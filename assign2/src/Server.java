@@ -8,6 +8,8 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.Collections;
+import java.util.HashMap;
 import java.util.Map;
 
 public class Server {
@@ -18,7 +20,7 @@ public class Server {
     private Timer timer = new Timer();
     private ExecutorService executor = Executors.newVirtualThreadPerTaskExecutor();
     private volatile boolean gameStarted = false;
-    private Map<Socket, ClientHandler> clientHandlers = new ConcurrentHashMap<>();
+    private Map<Socket, ClientHandler> clientHandlers = Collections.synchronizedMap(new HashMap<>());
     private Authentication auth = new Authentication();
     private Game game;
 
@@ -45,10 +47,13 @@ public class Server {
     }
 
     public void notifyAllClients(String message) {
-        for (ClientHandler handler : clientHandlers.values()) {
-            handler.out.println(message);
+        synchronized (clientHandlers) {
+            for (ClientHandler handler : clientHandlers.values()) {
+                handler.out.println(message);
+            }
         }
     }
+    
 
     private class ClientHandler implements Runnable {
         private Socket clientSocket;
@@ -180,13 +185,14 @@ public class Server {
     }
 
     public Map<Socket, Future<String>> collectAnswers() {
-        Map<Socket, Future<String>> answerFutures = new ConcurrentHashMap<>();
+        Map<Socket, Future<String>> answerFutures = Collections.synchronizedMap(new HashMap<>());
+
         clientHandlers.forEach((socket, handler) -> {
             Future<String> futureAnswer = executor.submit(handler::collectAnswer);
             answerFutures.put(socket, futureAnswer);
         });
         return answerFutures;
-    }    
+    }   
 
     public static void main(String[] args) {
         try {
