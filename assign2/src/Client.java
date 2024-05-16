@@ -15,6 +15,7 @@ public class Client {
     private String username, password;
     private String token;
     private int elo;
+    //private int score;
     private SocketChannel socketChannel;
     private BufferedReader consoleReader = new BufferedReader(new InputStreamReader(System.in));
     private PrintWriter writer;
@@ -27,6 +28,7 @@ public class Client {
         this.token = token;
         this.elo = elo;
         this.socketChannel = socketChannel;
+        //this.score = 0;
         try {
             this.writer = new PrintWriter(new OutputStreamWriter(socketChannel.socket().getOutputStream(), StandardCharsets.UTF_8), true);
             this.reader = new BufferedReader(new InputStreamReader(socketChannel.socket().getInputStream(), StandardCharsets.UTF_8));
@@ -164,11 +166,15 @@ public class Client {
                             System.out.println(message);
                         }
                     }
+                   
+                    String answer2 = reader.readLine();
+                    int correctAnswer = Integer.parseInt(answer2);
+
                     Timer timer = new Timer();
                     TimerTask sendDefaultAnswer = new TimerTask() {
                         public void run() {
                         
-                            sendAnswer("ANSWER," + username + "," + defaultAnswer);
+                            sendAnswer("ANSWER," + username + "," + defaultAnswer + "," + correctAnswer);
                             System.out.println("Time's up! No answer was provided.");
                         }
                     };
@@ -187,7 +193,13 @@ public class Client {
                                 int answer = Integer.parseInt(input);
                                 if (answer >= 1 && answer <= 4) {
                                     sendDefaultAnswer.cancel(); // Cancel the timer task if input is valid
-                                    sendAnswer("ANSWER," + username + "," + answer);
+                                    sendAnswer("ANSWER," + username + "," + answer + "," + correctAnswer);
+                                    
+                                    if(answer == correctAnswer) {
+                                        System.out.println("Correct answer!");
+                                    } else {
+                                        System.out.println("Incorrect answer.");
+                                    }
                                 } else {
                                     System.out.println("Invalid input. Please enter a number between 1 and 4.");
                                 }
@@ -203,7 +215,7 @@ public class Client {
                             int answer = Integer.parseInt(input);
                             if (answer >= 1 && answer <= 4) {
                                 sendDefaultAnswer.cancel(); 
-                                sendAnswer("ANSWER," + username + "," + answer);
+                                sendAnswer("ANSWER," + username + "," + answer + "," + correctAnswer);
                             } else {
                                 System.out.println("Invalid input. Please enter a number between 1 and 4.");
                             }

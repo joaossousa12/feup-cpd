@@ -7,7 +7,6 @@ import java.util.TimerTask;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
@@ -60,12 +59,16 @@ public class Server {
         private Server server;
         private PrintWriter out;
         private BufferedReader in;
+        private static int score = 0;
+        private String username;
 
 
 
         public ClientHandler(Socket socket, Server server) {
             this.clientSocket = socket;
             this.server = server;
+            ClientHandler.score = 0;
+
             try {
                 this.out = new PrintWriter(new OutputStreamWriter(clientSocket.getOutputStream(), StandardCharsets.UTF_8), true);
             } catch (IOException e) {
@@ -86,7 +89,11 @@ public class Server {
             } catch (IOException e) {
                 return "Error collecting answer";
             }
-        }        
+        }    
+        
+        public int getScore() {
+            return ClientHandler.score;
+        }    
 
         public void run() {
             try (BufferedReader in = new BufferedReader(new InputStreamReader(clientSocket.getInputStream(), StandardCharsets.UTF_8));
@@ -101,6 +108,7 @@ public class Server {
                     if (inputLine.startsWith("LOGIN,")) {
                         String[] parts = inputLine.split(",");
                         if (parts.length == 3) {
+                            this.username = parts[1]; 
                             String token = server.auth.login(parts[1], parts[2]);
                             if (token != null) {
                                 out.println("TOKEN," + token);  // Send token back to client
@@ -135,8 +143,13 @@ public class Server {
 
                     if(inputLine.startsWith("ANSWER,")){
                         String[] parts = inputLine.split(",");
-                        if (parts.length == 3) {
-                            //out.println(parts[1] + " responded with " + parts[2]);
+                        if (parts.length == 4) {
+                            if(parts[2].equals(parts[3])){
+                                score += 10;
+                            } else {
+                                if(score >= 5)
+                                    score -= 5;
+                            }
                         } else {
                             out.println("ERROR,Invalid input");
                             return;
@@ -157,6 +170,23 @@ public class Server {
             }
         }
         
+    }
+
+    public synchronized void evaluateScores() {
+        int highestScore = Integer.MIN_VALUE;
+        ClientHandler winner = null;
+
+        for (ClientHandler handler : clientHandlers.values()) {
+            int clientScore = handler.getScore();
+            if (clientScore > highestScore) {
+                highestScore = clientScore;
+                winner = handler;
+            }
+        }
+
+        if (winner != null) {
+            notifyAllClients("The winner is: " + winner.username + " with a score of: " + highestScore);
+        }
     }
 
     private void startTimer() {

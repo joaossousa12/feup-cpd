@@ -7,7 +7,6 @@ JC = javac
 CLASSES = \
     Authentication.java \
     Client.java \
-    ClientConnection.java \
     Game.java \
 	Server.java \
 	\
