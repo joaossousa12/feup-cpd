@@ -197,8 +197,10 @@ public class Client {
                                     
                                     if(answer == correctAnswer) {
                                         System.out.println("Correct answer!");
+                                        updateElo(true);
                                     } else {
                                         System.out.println("Incorrect answer.");
+                                        updateElo(false);
                                     }
                                 } else {
                                     System.out.println("Invalid input. Please enter a number between 1 and 4.");
@@ -226,6 +228,14 @@ public class Client {
                         timer.cancel(); 
                     }
                 }
+                else if (message.startsWith("UPDATE_ELO")) {
+                    String[] parts = message.split(",");
+                    if (parts.length == 2) {
+                        int newElo = Integer.parseInt(parts[1]);
+                        setElo(newElo);
+                        System.out.println("Your new Elo rating is: " + newElo);
+                    }
+                }
             }
         } catch (IOException e) {
             System.err.println("Error listening to server: " + e.getMessage());
@@ -234,6 +244,32 @@ public class Client {
     
     private void sendAnswer(String answer) {
         writer.println(answer);
+    }
+
+    private void updateElo(boolean correct) {
+        System.out.println("Elo: " + this.elo);
+        if (correct) {
+            this.elo += 10;  // Increase Elo by 10 points for a correct answer
+        }
+        else if (this.elo >= 5) {
+            this.elo -= 5;  
+        }
+
+        // Update Elo in the server or a local database
+        try {
+            List<String> lines = Files.readAllLines(Paths.get("./database.csv"));
+            for (int i = 0; i < lines.size(); i++) {
+                String[] parts = lines.get(i).split(",");
+                if (parts[0].equals(this.username)) {
+                    parts[2] = String.valueOf(this.elo);
+                    lines.set(i, String.join(",", parts));
+                    break;
+                }
+            }
+            Files.write(Paths.get("./database.csv"), lines, StandardOpenOption.WRITE, StandardOpenOption.TRUNCATE_EXISTING);
+        } catch (IOException e) {
+            System.err.println("Error updating Elo: " + e.getMessage());
+        }
     }
     
 

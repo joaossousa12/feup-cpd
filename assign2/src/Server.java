@@ -1,6 +1,9 @@
 import java.io.*;
 import java.net.*;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Paths;
+import java.nio.file.StandardOpenOption;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.Timer;
 import java.util.TimerTask;
@@ -9,7 +12,11 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
+import java.util.concurrent.locks.Lock;
+import java.util.concurrent.locks.ReentrantLock;
+import java.util.concurrent.locks.Condition;
 
 public class Server {
     private ServerSocket serverSocket;
@@ -59,15 +66,16 @@ public class Server {
         private Server server;
         private PrintWriter out;
         private BufferedReader in;
-        private static int score = 0;
+        private int score = 0;
         private String username;
+        private int elo;
 
 
 
         public ClientHandler(Socket socket, Server server) {
             this.clientSocket = socket;
             this.server = server;
-            ClientHandler.score = 0;
+
 
             try {
                 this.out = new PrintWriter(new OutputStreamWriter(clientSocket.getOutputStream(), StandardCharsets.UTF_8), true);
@@ -92,8 +100,29 @@ public class Server {
         }    
         
         public int getScore() {
-            return ClientHandler.score;
-        }    
+            return score;
+        }
+        
+        public int getElo() {
+            return elo;
+        }
+
+        private void updateEloInDatabase(String username, int newElo) {
+            try {
+                List<String> lines = Files.readAllLines(Paths.get("./database.csv"));
+                for (int i = 0; i < lines.size(); i++) {
+                    String[] parts = lines.get(i).split(",");
+                    if (parts[0].equals(username)) {
+                        parts[2] = String.valueOf(newElo);
+                        lines.set(i, String.join(",", parts));
+                        break;
+                    }
+                }
+                Files.write(Paths.get("./database.csv"), lines, StandardOpenOption.WRITE, StandardOpenOption.TRUNCATE_EXISTING);
+            } catch (IOException e) {
+                System.err.println("Error updating Elo in database: " + e.getMessage());
+            }
+        }
 
         public void run() {
             try (BufferedReader in = new BufferedReader(new InputStreamReader(clientSocket.getInputStream(), StandardCharsets.UTF_8));
@@ -150,6 +179,8 @@ public class Server {
                                 if(score >= 5)
                                     score -= 5;
                             }
+
+                            System.out.println("Player " + username + " scored: " + score);
                         } else {
                             out.println("ERROR,Invalid input");
                             return;
@@ -177,6 +208,7 @@ public class Server {
         ClientHandler winner = null;
 
         for (ClientHandler handler : clientHandlers.values()) {
+            System.out.println("Player " + handler.username + " scored: " + handler.getScore());
             int clientScore = handler.getScore();
             if (clientScore > highestScore) {
                 highestScore = clientScore;
@@ -234,4 +266,20 @@ public class Server {
             System.exit(1);
         }
     }
+
+    private static int getUserElo(String username) {
+        try (BufferedReader fileReader = new BufferedReader(new FileReader("./database.csv"))) {
+            String line;
+            while ((line = fileReader.readLine()) != null) {
+                String[] userData = line.split(",");
+                if (userData[0].equals(username)) {
+                    return Integer.parseInt(userData[2]);
+                }
+            }
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+        return -1; // User not found
+    }
+    
 }

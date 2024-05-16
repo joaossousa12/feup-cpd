@@ -9,6 +9,7 @@ import java.io.*;
 import java.net.Socket;
 import java.nio.file.*;
 import java.nio.charset.StandardCharsets;
+import java.util.concurrent.locks.ReentrantLock;
 
 public class Game {
     private static final String CSV_FILE = "./triviadb.csv";
@@ -16,6 +17,7 @@ public class Game {
     private static int numberOfPlayers;
     private static Server server;
     private static int currCorrectAnswer = 0;
+    private static final ReentrantLock lock = new ReentrantLock();
 
     public Game(Server server, int numberOfPlayers) {
         Game.server = server;
