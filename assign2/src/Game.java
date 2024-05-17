@@ -53,15 +53,14 @@ public class Game {
             server.notifyAllClients(String.valueOf(currCorrectAnswer));
     
             ExecutorService collectorExecutor = Executors.newSingleThreadExecutor();
-            collectorExecutor.execute(() -> {
-                // try {
-                    //Thread.sleep(10000);
-                    collectAndProcessAnswers(question, server, scores);
-                // } 
-                // catch (InterruptedException ie) {
-                //     Thread.currentThread().interrupt();
-                // }
-            });
+
+            try {
+                Thread.sleep(11000);
+            } catch (InterruptedException e) {
+                // Handle the interrupted exception
+                System.err.println("Sleep interrupted: " + e.getMessage());
+            }
+
     
             collectorExecutor.shutdown();
             try {
@@ -72,6 +71,7 @@ public class Game {
                 Thread.currentThread().interrupt();
                 collectorExecutor.shutdownNow();  
             }
+            System.out.println("\nQuestion " + question[0] + " completed.\n");
         }
 
         server.evaluateScores();
