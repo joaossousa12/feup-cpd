@@ -92,7 +92,7 @@ public class Game {
                     System.out.println("Player " + socket + " answered incorrectly.");
                 }
             } catch (TimeoutException e) {
-                System.out.println("Timeout Exception handle in future.");
+                //System.out.println("Timeout Exception handle in future.");
             } catch (InterruptedException | ExecutionException e) {
                 if (e.getMessage() != null) 
                     System.out.println("Failed to get answer from client " + socket + ": " + e.getMessage());
