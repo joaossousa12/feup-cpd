@@ -175,11 +175,11 @@ public class Server {
                         if (parts.length == 4) {
                             if(parts[2].equals(parts[3])){
                                 score += 10;
-                                System.out.println("Player " + username + " score: " + score);
+                                //System.out.println("Player " + username + " score: " + score);
                             } else {
                                 if(score >= 5)
                                     score -= 5;
-                                System.out.println("Player " + username + " score: " + score);
+                                //System.out.println("Player " + username + " score: " + score);
                             }
                         } else {
                             out.println("ERROR,Invalid input");
