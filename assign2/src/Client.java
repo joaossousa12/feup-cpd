@@ -243,7 +243,6 @@ public class Client {
     }
     
     private void sendAnswer(String answer) {
-        System.out.println("Sending answer: " + answer);
         writer.println(answer);
     }
 
