@@ -10,12 +10,15 @@ import java.util.TimerTask;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
+import java.util.ArrayList;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
+import java.util.stream.Collectors;
 import java.util.concurrent.locks.Condition;
 
 public class Server {
@@ -29,6 +32,7 @@ public class Server {
     private Map<Socket, ClientHandler> clientHandlers = Collections.synchronizedMap(new HashMap<>());
     private Authentication auth = new Authentication();
     private Game game;
+    private ReentrantLock matchmakingLock = new ReentrantLock();
 
     public Server(int port) throws IOException {
         serverSocket = new ServerSocket(port);
@@ -69,12 +73,14 @@ public class Server {
         private int score = 0;
         private String username;
         private int elo;
+        private long joinTime;
 
 
 
         public ClientHandler(Socket socket, Server server) {
             this.clientSocket = socket;
             this.server = server;
+            this.joinTime = System.currentTimeMillis();
 
 
             try {
@@ -105,6 +111,10 @@ public class Server {
         
         public int getElo() {
             return elo;
+        }
+
+        public long getJoinTime() {
+            return joinTime;
         }
 
         private void updateEloInDatabase(String username, int newElo) {
@@ -278,6 +288,22 @@ public class Server {
             e.printStackTrace();
         }
         return -1; // User not found
+    }
+
+    public void startMatchmaking() {
+        new Timer().scheduleAtFixedRate(new TimerTask() {
+            @Override
+            public void run() {
+                matchmakingLock.lock();
+                try {
+                    if (!gameStarted && connectedPlayers.get() >= MIN_PLAYERS) {
+                       // matchPlayers();
+                    }
+                } finally {
+                    matchmakingLock.unlock();
+                }
+            }
+        }, 0, 10000); // Attempt to match players every 10 seconds
     }
     
 }
