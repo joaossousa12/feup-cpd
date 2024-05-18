@@ -74,6 +74,8 @@ public class Game {
             System.out.println("\nQuestion " + question[0] + " completed.\n");
         }
 
+        System.out.println("Game Over! Final scores:");
+
         server.evaluateScores();
     }    
     

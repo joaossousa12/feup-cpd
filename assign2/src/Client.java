@@ -197,10 +197,8 @@ public class Client {
                                     
                                     if(answer == correctAnswer) {
                                         System.out.println("Correct answer!");
-                                        updateElo(true);
                                     } else {
                                         System.out.println("Incorrect answer.");
-                                        updateElo(false);
                                     }
                                 } else {
                                     System.out.println("Invalid input. Please enter a number between 1 and 4.");
@@ -234,6 +232,8 @@ public class Client {
                         int newElo = Integer.parseInt(parts[1]);
                         setElo(newElo);
                         System.out.println("Your new Elo rating is: " + newElo);
+                        
+                        updateElo(newElo);
                     }
                 }
             }
@@ -246,16 +246,9 @@ public class Client {
         writer.println(answer);
     }
 
-    private void updateElo(boolean correct) {
-        System.out.println("Elo: " + this.elo);
-        if (correct) {
-            this.elo += 10;  // Increase Elo by 10 points for a correct answer
-        }
-        else if (this.elo >= 5) {
-            this.elo -= 5;  
-        }
+    private void updateElo(int newElo) {
+        this.elo = newElo;
 
-        // Update Elo in the server or a local database
         try {
             List<String> lines = Files.readAllLines(Paths.get("./database.csv"));
             for (int i = 0; i < lines.size(); i++) {

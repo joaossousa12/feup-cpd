@@ -21,6 +21,7 @@ import java.util.concurrent.locks.ReentrantLock;
 import java.util.stream.Collectors;
 import java.util.concurrent.locks.Condition;
 
+
 public class Server {
     private ServerSocket serverSocket;
     private static final int MIN_PLAYERS = 2;
@@ -29,10 +30,12 @@ public class Server {
     private Timer timer = new Timer();
     private ExecutorService executor = Executors.newVirtualThreadPerTaskExecutor();
     private volatile boolean gameStarted = false;
-    private Map<Socket, ClientHandler> clientHandlers = Collections.synchronizedMap(new HashMap<>());
+    private Map<Socket, ClientHandler> clientHandlers = new HashMap<>();
     private Authentication auth = new Authentication();
     private Game game;
     private ReentrantLock matchmakingLock = new ReentrantLock();
+    private final Lock clientHandlersLock = new ReentrantLock();
+    private final Lock gameLock = new ReentrantLock();
 
     public Server(int port) throws IOException {
         serverSocket = new ServerSocket(port);
@@ -44,7 +47,12 @@ public class Server {
             try {
                 Socket clientSocket = serverSocket.accept();
                 ClientHandler handler = new ClientHandler(clientSocket, this);
-                clientHandlers.put(clientSocket, handler);
+                clientHandlersLock.lock();
+                try {
+                    clientHandlers.put(clientSocket, handler);
+                } finally {
+                    clientHandlersLock.unlock();
+                }
                 executor.submit(handler);
             } catch (IOException e) {
                 System.out.println("Exception caught when trying to listen on port or listening for a connection");
@@ -57,10 +65,13 @@ public class Server {
     }
 
     public void notifyAllClients(String message) {
-        synchronized (clientHandlers) {
+        clientHandlersLock.lock();
+        try {
             for (ClientHandler handler : clientHandlers.values()) {
                 handler.out.println(message);
             }
+        } finally {
+            clientHandlersLock.unlock();
         }
     }
     
@@ -74,6 +85,7 @@ public class Server {
         private String username;
         private int elo;
         private long joinTime;
+        private final Lock handlerLock = new ReentrantLock();
 
 
 
@@ -98,15 +110,24 @@ public class Server {
         }
 
         public String collectAnswer() {
+            handlerLock.lock();
             try {
                 return in.readLine();
             } catch (IOException e) {
-                return "Error collecting answer";
+                System.err.println("Error collecting answer from client " + clientSocket);
+                e.printStackTrace();
+                return null;
+            } finally {
+                handlerLock.unlock();
             }
         }    
         
         public int getScore() {
             return score;
+        }
+
+        public String getUsername() {
+            return username;
         }
         
         public int getElo() {
@@ -115,6 +136,17 @@ public class Server {
 
         public long getJoinTime() {
             return joinTime;
+
+        }
+        public void updateElo(int opponentElo, boolean won) {
+            
+                if (won) {
+                    this.elo += 10;
+                } else if (this.elo >= 5) {
+                    this.elo -= 5;
+                }
+                updateEloInDatabase(this.username, this.elo);
+          
         }
 
         private void updateEloInDatabase(String username, int newElo) {
@@ -147,7 +179,8 @@ public class Server {
                     if (inputLine.startsWith("LOGIN,")) {
                         String[] parts = inputLine.split(",");
                         if (parts.length == 3) {
-                            this.username = parts[1]; 
+                            this.username = parts[1];
+                            this.elo = getUserElo(parts[1]); 
                             String token = server.auth.login(parts[1], parts[2]);
                             if (token != null) {
                                 out.println("TOKEN," + token);  // Send token back to client
@@ -180,18 +213,22 @@ public class Server {
                         }
                     }
 
-                    if(inputLine.startsWith("ANSWER," + username)){
-                        String[] parts = inputLine.split(",");
-                        if (parts.length == 4) {
-                            if(parts[2].equals(parts[3])){
-                                score += 10;
+                    if(inputLine.startsWith("ANSWER,")){
+                        handlerLock.lock();
+                        try {
+                            String[] parts = inputLine.split(",");
+                            if (parts.length == 4) {
+                                if (parts[2].equals(parts[3])) {
+                                    score += 10;
+                                } else {
+                                    if (score >= 5) score -= 5;
+                                }
                             } else {
-                                if(score >= 5)
-                                    score -= 5;
+                                out.println("ERROR,Invalid input");
+                                return;
                             }
-                        } else {
-                            out.println("ERROR,Invalid input");
-                            return;
+                        } finally {
+                            handlerLock.unlock();
                         }
                     }
                 }
@@ -202,7 +239,12 @@ public class Server {
                 try {
                     System.out.println("Closing connection to client #" + clientSocket.getRemoteSocketAddress());
                     clientSocket.close();
-                    clientHandlers.remove(clientSocket);
+                    clientHandlersLock.lock();
+                    try {
+                        clientHandlers.remove(clientSocket);
+                    } finally {
+                        clientHandlersLock.unlock();
+                    }
                 } catch (IOException e) {
                     e.printStackTrace();
                 }
@@ -212,20 +254,37 @@ public class Server {
     }
 
     public synchronized void evaluateScores() {
-        int highestScore = Integer.MIN_VALUE;
-        ClientHandler winner = null;
+        gameLock.lock();
+        try {
+            int highestScore = Integer.MIN_VALUE;
+            ClientHandler winner = null;
 
-        for (ClientHandler handler : clientHandlers.values()) {
-            System.out.println("Player " + handler.username + " scored: " + handler.getScore());
-            int clientScore = handler.getScore();
-            if (clientScore > highestScore) {
-                highestScore = clientScore;
-                winner = handler;
+            clientHandlersLock.lock();
+            try {
+                for (ClientHandler handler : clientHandlers.values()) {
+                    System.out.println("Player " + handler.getUsername() + " scored: " + handler.getScore());
+                    int clientScore = handler.getScore();
+                    if (clientScore > highestScore) {
+                        highestScore = clientScore;
+                        winner = handler;
+                    }
+                }
+
+                if (winner != null) {
+                    notifyAllClients("The winner is: " + winner.username + " with a score of: " + highestScore);
+
+                    for (ClientHandler handler : clientHandlers.values()) {
+                        boolean won = handler == winner;
+                        handler.updateElo(winner.getElo(), won);
+                        System.out.println("Player " + handler.username + " has an Elo of: " + handler.getElo());
+                        handler.out.println("UPDATE_ELO," + handler.getElo());
+                    }
+                }
+            } finally {
+                clientHandlersLock.unlock();
             }
-        }
-
-        if (winner != null) {
-            notifyAllClients("The winner is " + winner.username + " with a score of: " + highestScore);
+        } finally {
+            gameLock.unlock();
         }
     }
 
@@ -233,34 +292,46 @@ public class Server {
         timer.schedule(new TimerTask() {
             @Override
             public void run() {
-                synchronized (Server.this) {
+                gameLock.lock();
+                try {
                     if (!gameStarted && connectedPlayers.get() >= MIN_PLAYERS) {
                         System.out.println("Timer triggered, starting game with current players.");
                         startGame();
                     }
+                } finally {
+                    gameLock.unlock();
                 }
             }
         }, 1000); // Wait for 30 seconds
     }
 
     private synchronized void startGame() {
-        if (!gameStarted) {
-            gameStarted = true;
-            System.out.println("Game started!");
-            notifyAllClients("Game started!");
-            game = new Game(this, connectedPlayers.get());
-            game.startGame();
-
+        gameLock.lock();
+        try {
+            if (!gameStarted) {
+                gameStarted = true;
+                System.out.println("Game started!");
+                notifyAllClients("Game started!");
+                game = new Game(this, connectedPlayers.get());
+                game.startGame();
+            }
+        } finally {
+            gameLock.unlock();
         }
     }
 
     public Map<Socket, Future<String>> collectAnswers() {
-        Map<Socket, Future<String>> answerFutures = Collections.synchronizedMap(new HashMap<>());
+        Map<Socket, Future<String>> answerFutures = new HashMap<>();
 
-        clientHandlers.forEach((socket, handler) -> {
-            Future<String> futureAnswer = executor.submit(handler::collectAnswer);
-            answerFutures.put(socket, futureAnswer);
-        });
+        clientHandlersLock.lock();
+        try {
+            clientHandlers.forEach((socket, handler) -> {
+                Future<String> futureAnswer = executor.submit(handler::collectAnswer);
+                answerFutures.put(socket, futureAnswer);
+            });    
+        } finally {
+            clientHandlersLock.unlock();
+        }
         return answerFutures;
     }   
 
