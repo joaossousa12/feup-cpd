@@ -205,12 +205,16 @@ public class Server {
                         int playerCount = server.connectedPlayers.get();
                         System.out.println("Connected to client: " + clientSocket.getRemoteSocketAddress() + " - Total players: " + playerCount);
                         
-                        if (playerCount == MIN_PLAYERS) {
+                        server.startMatchmaking();
+
+                       /*  if (playerCount == MIN_PLAYERS) {
                             server.startTimer();
                         }
                         if (playerCount >= MIN_PLAYERS && playerCount <= MAX_PLAYERS && !server.gameStarted) {
                             out.println("start"); // Signal client to start the game
                         }
+                        */
+
                     }
 
                     if(inputLine.startsWith("ANSWER,")){
@@ -368,13 +372,57 @@ public class Server {
                 matchmakingLock.lock();
                 try {
                     if (!gameStarted && connectedPlayers.get() >= MIN_PLAYERS) {
-                       // matchPlayers();
+                       matchPlayers();
                     }
                 } finally {
                     matchmakingLock.unlock();
                 }
             }
         }, 0, 10000); // Attempt to match players every 10 seconds
+    }
+
+    private void matchPlayers() {
+        List<ClientHandler> players = new ArrayList<>(clientHandlers.values());
+
+        players.sort(Comparator.comparingInt(ClientHandler::getElo));
+
+        List<List<ClientHandler>> teams = new ArrayList<>();
+        List<ClientHandler> currentTeam = new ArrayList<>();
+
+        int eloRange = 100; // Initial ELO range
+        long currentTime = System.currentTimeMillis();
+
+        for (ClientHandler player : players) {
+            if (currentTeam.isEmpty()) {
+                currentTeam.add(player);
+            } else {
+                ClientHandler lastPlayer = currentTeam.get(currentTeam.size() - 1);
+                if (Math.abs(player.getElo() - lastPlayer.getElo()) <= eloRange ||
+                    (currentTime - player.getJoinTime()) > 30000) { // Relax ELO range if player waited > 30 sec
+                    currentTeam.add(player);
+                } else {
+                    if (currentTeam.size() >= MIN_PLAYERS) {
+                        teams.add(new ArrayList<>(currentTeam));
+                        currentTeam.clear();
+                        currentTeam.add(player);
+                    }
+                }
+            }
+        }
+        if (currentTeam.size() >= MIN_PLAYERS) {
+            teams.add(currentTeam);
+        }
+
+        for (List<ClientHandler> team : teams) {
+            notifyAllClients("Team formed with players: " + team.stream().map(h -> h.username).collect(Collectors.joining(", ")));
+            startGameRanked(team);
+        }
+    }
+
+    private void startGameRanked(List<ClientHandler> team) {
+        notifyAllClients("Starting game for team: " + team.stream().map(h -> h.username).collect(Collectors.joining(", ")));
+        game = new Game(this, team.size());
+        game.startGame();
     }
     
 }
