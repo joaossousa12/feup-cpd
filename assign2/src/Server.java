@@ -23,7 +23,7 @@ import java.util.stream.Collectors;
 
 public class Server {
     private ServerSocket serverSocket;
-    private static final int MIN_PLAYERS = 2;
+    private static final int MIN_PLAYERS = 4;
     private static final int MAX_PLAYERS = 10;
     private AtomicInteger connectedPlayers = new AtomicInteger(0);
     private Timer timer = new Timer();
