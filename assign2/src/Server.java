@@ -23,7 +23,7 @@ import java.util.stream.Collectors;
 
 public class Server {
     private ServerSocket serverSocket;
-    private static final int MIN_PLAYERS = 4;
+    private static final int MIN_PLAYERS = 2;
     private static final int MAX_PLAYERS = 10;
     private AtomicInteger connectedPlayers = new AtomicInteger(0);
     private Timer timer = new Timer();
@@ -56,7 +56,6 @@ public class Server {
                 }
                 executor.submit(handler);
             } catch (IOException e) {
-                System.out.println(e.getMessage());
                 if (serverSocket.isClosed()) {
                     break;
                 }
@@ -221,7 +220,6 @@ public class Server {
                     } 
         
                     if (inputLine.startsWith("ready")) {
-                        System.out.println("Client is ready to start the game.");
                         
                         server.addClientToGameModeList(this);
                         int playerCount = server.directPlayClients.size();
@@ -259,7 +257,6 @@ public class Server {
                     }
                 }
             } catch (SocketException e) {
-                System.out.println("Client socket closed: " + e.getMessage());
             }
              catch (IOException e) {
                 System.out.println("Error handling client #" + clientSocket.getRemoteSocketAddress());
@@ -467,7 +464,6 @@ public class Server {
             if (handler.gameMode.equals("MATCHMAKING")) {
                 matchmakingClients.add(handler);
             } else {
-                System.out.println("Adding client to direct play list");
                 directPlayClients.add(handler);
             }
         } finally {
