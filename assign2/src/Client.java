@@ -22,6 +22,7 @@ public class Client {
     private BufferedReader reader;
     //private int elapsedTime = 0;
 
+    @SuppressWarnings("resource")
     Client(String username, String password, String token, int elo, SocketChannel socketChannel){
         this.username = username;
         this.password = password;

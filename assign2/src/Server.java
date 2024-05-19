@@ -12,7 +12,6 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
@@ -20,12 +19,11 @@ import java.util.Map;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.stream.Collectors;
-import java.util.concurrent.locks.Condition;
 
 
 public class Server {
     private ServerSocket serverSocket;
-    private static final int MIN_PLAYERS = 2;
+    private static final int MIN_PLAYERS = 4;
     private static final int MAX_PLAYERS = 10;
     private AtomicInteger connectedPlayers = new AtomicInteger(0);
     private Timer timer = new Timer();
@@ -344,7 +342,7 @@ public class Server {
                     gameLock.unlock();
                 }
             }
-        }, 1000); // Wait for 30 seconds
+        }, 30000); // Wait for 30 seconds
     }
 
     private synchronized void startGame() {
@@ -416,7 +414,7 @@ public class Server {
                     matchmakingLock.unlock();
                 }
             }
-        }, 0, 10000); // Attempt to match players every 10 seconds
+        }, 30000, 10000); // attempt to match players every 10 seconds
     }
 
     private void matchPlayers() {
@@ -425,34 +423,34 @@ public class Server {
         players.sort(Comparator.comparingInt(ClientHandler::getElo));
 
         List<List<ClientHandler>> teams = new ArrayList<>();
-        List<ClientHandler> currentTeam = new ArrayList<>();
+        List<ClientHandler> currentQueue = new ArrayList<>();
 
-        int eloRange = 100; // Initial ELO range
+        int eloRange = 100; // initial ELO range
         long currentTime = System.currentTimeMillis();
 
         for (ClientHandler player : players) {
-            if (currentTeam.isEmpty()) {
-                currentTeam.add(player);
+            if (currentQueue.isEmpty()) {
+                currentQueue.add(player);
             } else {
-                ClientHandler lastPlayer = currentTeam.get(currentTeam.size() - 1);
+                ClientHandler lastPlayer = currentQueue.get(currentQueue.size() - 1);
                 if (Math.abs(player.getElo() - lastPlayer.getElo()) <= eloRange ||
-                    (currentTime - player.getJoinTime()) > 30000) { // Relax ELO range if player waited > 30 sec
-                    currentTeam.add(player);
+                    (currentTime - player.getJoinTime()) > 30000) { // relax ELO range if player waited > 30 sec
+                    currentQueue.add(player);
                 } else {
-                    if (currentTeam.size() >= MIN_PLAYERS) {
-                        teams.add(new ArrayList<>(currentTeam));
-                        currentTeam.clear();
-                        currentTeam.add(player);
+                    if (currentQueue.size() >= MIN_PLAYERS) {
+                        teams.add(new ArrayList<>(currentQueue));
+                        currentQueue.clear();
+                        currentQueue.add(player);
                     }
                 }
             }
         }
-        if (currentTeam.size() >= MIN_PLAYERS) {
-            teams.add(currentTeam);
+        if (currentQueue.size() >= MIN_PLAYERS) {
+            teams.add(currentQueue);
         }
 
         for (List<ClientHandler> team : teams) {
-            notifyAllClients("Team formed with players: " + team.stream().map(h -> h.username).collect(Collectors.joining(", ")));
+            notifyAllClients("Queue formed with players: " + team.stream().map(h -> h.username).collect(Collectors.joining(", ")));
             startGameRanked(team);
         }
     }

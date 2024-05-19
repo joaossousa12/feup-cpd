@@ -9,7 +9,6 @@ import java.io.*;
 import java.net.Socket;
 import java.nio.file.*;
 import java.nio.charset.StandardCharsets;
-import java.util.concurrent.locks.ReentrantLock;
 
 public class Game {
     private static final String CSV_FILE = "./triviadb.csv";
@@ -17,7 +16,6 @@ public class Game {
     private static int numberOfPlayers;
     private static Server server;
     private static int currCorrectAnswer = 0;
-    private static final ReentrantLock lock = new ReentrantLock();
 
     public Game(Server server, int numberOfPlayers) {
         Game.server = server;
@@ -27,6 +25,7 @@ public class Game {
     public void startGame() {
         List<String[]> questions = readQuestionsFromCSV(CSV_FILE);
         Collections.shuffle(questions);
+        @SuppressWarnings("unused")
         int[] scores = new int[numberOfPlayers];
     
         for (int i = 0; i < NUMBER_OF_QUESTIONS; i++) {
@@ -80,6 +79,7 @@ public class Game {
     }    
     
     
+    @SuppressWarnings("unused")
     private static void collectAndProcessAnswers(String[] question, Server server, int[] scores) {
         Map<Socket, Future<String>> answers = server.collectAnswers();
     
