@@ -142,6 +142,24 @@ public class Client {
         return null; // User not found
     }
 
+    public void chooseGameMode() {
+        try {
+            System.out.println("Choose game mode: (1) Matchmaking, (2) Direct play");
+            String choice = consoleReader.readLine().trim();
+
+            if (choice.equals("1")) {
+                writer.println("MODE,MATCHMAKING");
+            } else if (choice.equals("2")) {
+                writer.println("MODE,DIRECT_PLAY");
+            } else {
+                System.out.println("Invalid choice. Please enter 1 or 2.");
+                chooseGameMode();
+            }
+        } catch (IOException e) {
+            System.err.println("Error choosing game mode: " + e.getMessage());
+        }
+    }
+
     private void sendReadySignal() {
         try {
             BufferedWriter writer = new BufferedWriter(new OutputStreamWriter(socketChannel.socket().getOutputStream(), StandardCharsets.UTF_8));
@@ -319,6 +337,7 @@ public class Client {
                 System.out.println("Token authentication successful.");
                 Client client = new Client(clUsername, getUserPassword(clUsername), tokenGlobal, getUserElo(clUsername), socketChannel);
                 if(client.login()){
+                    client.chooseGameMode();
                     client.sendReadySignal();
                     client.listenToServer();
                 }
@@ -372,6 +391,7 @@ public class Client {
                     Client client = new Client(clUsername, password, "", getUserElo(clUsername), socketChannel);
                     if (client.login()) {
                         System.out.println("Logged in successfully. Token: " + client.getToken());
+                        client.chooseGameMode();
                         client.sendReadySignal();
                         client.listenToServer();
                     } else {

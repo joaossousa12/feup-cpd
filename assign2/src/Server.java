@@ -32,6 +32,8 @@ public class Server {
     private ExecutorService executor = Executors.newVirtualThreadPerTaskExecutor();
     private volatile boolean gameStarted = false;
     private Map<Socket, ClientHandler> clientHandlers = new HashMap<>();
+    private List<ClientHandler> matchmakingClients = new ArrayList<>();
+    private List<ClientHandler> directPlayClients = new ArrayList<>();
     private Authentication auth = new Authentication();
     private Game game;
     private ReentrantLock matchmakingLock = new ReentrantLock();
@@ -85,6 +87,7 @@ public class Server {
         private String username;
         private int elo;
         private long joinTime;
+        private String gameMode = "MATCHMAKING";
         private final Lock handlerLock = new ReentrantLock();
 
 
@@ -214,22 +217,27 @@ public class Server {
                             out.println("ERROR,Invalid input");
                             return;
                         }
+                    }
+                    else if (inputLine.startsWith("MODE,")) {
+                        handleGameMode(inputLine);
                     } 
         
                     if (inputLine.startsWith("ready")) {
                         System.out.println("Client is ready to start the game.");
-                        int playerCount = server.connectedPlayers.get();
-                        System.out.println("Connected to client: " + clientSocket.getRemoteSocketAddress() + " - Total players: " + playerCount);
                         
-                        server.startMatchmaking();
-
-                       /*  if (playerCount == MIN_PLAYERS) {
-                            server.startTimer();
+                        server.addClientToGameModeList(this);
+                        int playerCount = server.directPlayClients.size();
+                        if (gameMode.equals("MATCHMAKING")) {
+                            server.startMatchmaking();
+                        } else {
+                            if (playerCount == MIN_PLAYERS) {
+                                server.startTimer();
+                            }
+                            if (playerCount >= MIN_PLAYERS && playerCount <= MAX_PLAYERS && !server.gameStarted) {
+                                out.println("start"); // Signal client to start the game
+                            }
                         }
-                        if (playerCount >= MIN_PLAYERS && playerCount <= MAX_PLAYERS && !server.gameStarted) {
-                            out.println("start"); // Signal client to start the game
-                        }
-                        */
+                
 
                     }
 
@@ -261,6 +269,7 @@ public class Server {
             } finally {
                 try {
                     clientSocket.close();
+                    server.removeClientFromGameModeList(this);
                     clientHandlersLock.lock();
                     try {
                         clientHandlers.remove(clientSocket);
@@ -270,6 +279,16 @@ public class Server {
                 } catch (IOException e) {
                     e.printStackTrace();
                 }
+            }
+        }
+
+        private void handleGameMode(String inputLine) {
+            String[] parts = inputLine.split(",");
+            if (parts.length == 2) {
+                this.gameMode = parts[1];
+                System.out.println("Client " + clientSocket.getRemoteSocketAddress() + " selected game mode: " + this.gameMode);
+            } else {
+                System.err.println("Invalid game mode input from client: " + inputLine);
             }
         }
         
@@ -317,7 +336,7 @@ public class Server {
             public void run() {
                 gameLock.lock();
                 try {
-                    if (!gameStarted && connectedPlayers.get() >= MIN_PLAYERS) {
+                    if (!gameStarted && directPlayClients.size() >= MIN_PLAYERS) {
                         System.out.println("Timer triggered, starting game with current players.");
                         startGame();
                     }
@@ -335,7 +354,7 @@ public class Server {
                 gameStarted = true;
                 System.out.println("Game started!");
                 notifyAllClients("Game started!");
-                game = new Game(this, connectedPlayers.get());
+                game = new Game(this, directPlayClients.size());
                 game.startGame();
             }
         } finally {
@@ -401,7 +420,7 @@ public class Server {
     }
 
     private void matchPlayers() {
-        List<ClientHandler> players = new ArrayList<>(clientHandlers.values());
+        List<ClientHandler> players = new ArrayList<>(matchmakingClients);
 
         players.sort(Comparator.comparingInt(ClientHandler::getElo));
 
@@ -442,6 +461,33 @@ public class Server {
         notifyAllClients("Starting game for team: " + team.stream().map(h -> h.username).collect(Collectors.joining(", ")));
         game = new Game(this, team.size());
         game.startGame();
+    }
+
+    public void addClientToGameModeList(ClientHandler handler) {
+        clientHandlersLock.lock();
+        try {
+            if (handler.gameMode.equals("MATCHMAKING")) {
+                matchmakingClients.add(handler);
+            } else {
+                System.out.println("Adding client to direct play list");
+                directPlayClients.add(handler);
+            }
+        } finally {
+            clientHandlersLock.unlock();
+        }
+    }
+
+    public void removeClientFromGameModeList(ClientHandler handler) {
+        clientHandlersLock.lock();
+        try {
+            if (handler.gameMode.equals("MATCHMAKING")) {
+                matchmakingClients.remove(handler);
+            } else {
+                directPlayClients.remove(handler);
+            }
+        } finally {
+            clientHandlersLock.unlock();
+        }
     }
 
     private void shutdownServer() {
