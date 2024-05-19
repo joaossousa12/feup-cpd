@@ -10,6 +10,7 @@ import java.util.TimerTask;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
@@ -55,7 +56,6 @@ public class Server {
                 }
                 executor.submit(handler);
             } catch (IOException e) {
-                System.out.println("Exception caught when trying to listen on port or listening for a connection");
                 System.out.println(e.getMessage());
                 if (serverSocket.isClosed()) {
                     break;
@@ -166,6 +166,22 @@ public class Server {
             }
         }
 
+        public void close() {
+            try {
+                if (clientSocket != null && !clientSocket.isClosed()) {
+                    clientSocket.close();
+                }
+                if (out != null) {
+                    out.close();
+                }
+                if (in != null) {
+                    in.close();
+                }
+            } catch (IOException e) {
+                System.err.println("Error closing client handler resources: " + e.getMessage());
+            }
+        }
+
         public void run() {
             try (BufferedReader in = new BufferedReader(new InputStreamReader(clientSocket.getInputStream(), StandardCharsets.UTF_8));
                  PrintWriter out = new PrintWriter(new OutputStreamWriter(clientSocket.getOutputStream(), StandardCharsets.UTF_8), true)) {
@@ -236,12 +252,14 @@ public class Server {
                         }
                     }
                 }
-            } catch (IOException e) {
+            } catch (SocketException e) {
+                System.out.println("Client socket closed: " + e.getMessage());
+            }
+             catch (IOException e) {
                 System.out.println("Error handling client #" + clientSocket.getRemoteSocketAddress());
                 e.printStackTrace();
             } finally {
                 try {
-                    System.out.println("Closing connection to client #" + clientSocket.getRemoteSocketAddress());
                     clientSocket.close();
                     clientHandlersLock.lock();
                     try {
@@ -289,6 +307,7 @@ public class Server {
             }
         } finally {
             gameLock.unlock();
+            shutdownServer();
         }
     }
 
@@ -424,5 +443,41 @@ public class Server {
         game = new Game(this, team.size());
         game.startGame();
     }
+
+    private void shutdownServer() {
+        // Close all client sockets
+        clientHandlersLock.lock();
+        try {
+            for (ClientHandler handler : clientHandlers.values()) {
+                handler.close();
+            }
+            clientHandlers.clear();
+        } finally {
+            clientHandlersLock.unlock();
+        }
+    
+        // Close the server socket
+        try {
+            if (serverSocket != null && !serverSocket.isClosed()) {
+                serverSocket.close();
+            }
+        } catch (IOException e) {
+            System.err.println("Error closing server socket: " + e.getMessage());
+        }
+    
+        // Shut down the executor service
+        executor.shutdown();
+        try {
+            if (!executor.awaitTermination(5, TimeUnit.SECONDS)) {
+                executor.shutdownNow();
+            }
+        } catch (InterruptedException e) {
+            executor.shutdownNow();
+            System.err.println("Executor service interrupted during shutdown: " + e.getMessage());
+        }
+    
+        System.out.println("Server shut down completed.");
+    }
+    
     
 }
